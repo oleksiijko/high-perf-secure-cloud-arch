@@ -6,12 +6,24 @@ except ModuleNotFoundError:
     import pandas as pd
 
 import argparse
+import csv
 
 def _load_metrics(path: str) -> tuple[float, float]:
-    df = pd.read_csv(path)
-    if df.empty:
+    rows = []
+    with open(path, newline="") as f:
+        for row in csv.reader(f):
+            if not row:
+                continue
+            if row[0].lower() == "timestamp":
+                continue
+            if len(row) < 4:
+                continue
+            rows.append(row[:4])
+
+    if not rows:
         return 0.0, 0.0
 
+    df = pd.DataFrame(rows, columns=["timestamp", "url", "rt_ms", "http_code"])
     df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
     df["rt_ms"] = pd.to_numeric(df["rt_ms"], errors="coerce")
     df = df.dropna(subset=["timestamp", "rt_ms"])
