@@ -16,6 +16,9 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '18', cache: 'npm' }
       - run: npm ci
+      - run: npm install --prefix src/account-svc
+      - run: npm install --prefix src/content-svc
+      - run: npm install --prefix src/analytics-svc
       - run: npm test
 
       # --- Terraform ---
@@ -37,5 +40,5 @@ jobs:
       - run: python3 scripts/aggregate_metrics.py
 
       - name: trivy
-        uses: aquasecurity/trivy-action@0.14.0
+        uses: aquasecurity/trivy-action@master
 
