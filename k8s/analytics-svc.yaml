@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analytics-svc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: analytics-svc
+  template:
+    metadata:
+      labels:
+        app: analytics-svc
+        role: backend
+    spec:
+      containers:
+        - name: analytics-svc
+          image: analytics-svc:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: CERT_DIR
+              value: /certs
+            - name: REDIS_URL
+              value: redis://redis:6379
+          volumeMounts:
+            - name: tls
+              mountPath: /certs
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+      volumes:
+        - name: tls
+          secret:
+            secretName: tls-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: analytics-svc
+spec:
+  selector:
+    app: analytics-svc
+  ports:
+    - port: 80
+      targetPort: 3000

@@ -68,6 +68,19 @@ Install JMeter via `brew install jmeter` or download it from the [official archi
 jmeter -n -t jmeter/microservices-test-plan.jmx
 ```
 
+## Kubernetes Manifests
+Manifests for running the microservices on Kubernetes live in `k8s/`. They
+include Deployments, Services and an Ingress resource. Istio configuration
+under `k8s/istio/` enables mutual TLS between the services. Network policies
+restrict traffic so only the frontend or other backends can reach the
+microservices.
+
+To apply everything:
+```bash
+kubectl apply -f k8s/
+kubectl apply -f k8s/istio/
+```
+
 ## Logs
 Sample run data lives in `logs/sample_run.csv` for reference. Running
 `python metrics.py` generates `reports/metrics_report.pdf`.
