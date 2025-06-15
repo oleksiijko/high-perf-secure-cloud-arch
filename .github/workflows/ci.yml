@@ -44,6 +44,16 @@ jobs:
       - run: pip install pandas --quiet
       - run: python3 scripts/aggregate_metrics.py
 
-      - name: trivy
+      # --- Trivy Scan ---
+      - name: Install Trivy
         uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          ignore-unfixed: true
+          skip-dirs: node_modules,__tests__,.git
+      
 
