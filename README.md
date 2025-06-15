@@ -31,7 +31,7 @@ docker compose build
 npm ci
 npm test
 ```
-The script `scripts/aggregate_metrics.py` aggregates JMeter metrics.
+Run `python metrics.py` to aggregate metrics and generate a PDF report.
 
 ### Run Load Tests
 ```bash
@@ -65,8 +65,8 @@ jmeter -n -t jmeter/microservices-test-plan.jmx \
 ```
 
 ## Logs
-Sample run data lives in `logs/sample_run.csv` for reference. The script
-`scripts/plot_metrics.py` generates `reports/perf-baseline-vs-micro.pdf`.
+Sample run data lives in `logs/sample_run.csv` for reference. Running
+`python metrics.py` generates `reports/metrics_report.pdf`.
 
 ## Supplementary Material
 [Supplementary_S1.zip](docs/Supplementary_S1.zip) contains additional datasets.
