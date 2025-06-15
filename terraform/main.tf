@@ -12,6 +12,10 @@ provider "aws" {
   region = var.region
 }
 
+locals {
+  container_image = "public.ecr.aws/docker/library/node:18-alpine"
+}
+
 # ECS cluster using Fargate free tier
 resource "aws_ecs_cluster" "this" {
   name = "hp-secure-cloud-cluster"
@@ -51,7 +55,7 @@ resource "aws_ecs_task_definition" "account" {
   container_definitions = jsonencode([
     {
       name      = "account-svc"
-      image     = "node:18-alpine"
+      image     = local.container_image
       essential = true
       portMappings = [{
         containerPort = 3000
@@ -80,7 +84,7 @@ resource "aws_ecs_task_definition" "content" {
   container_definitions = jsonencode([
     {
       name      = "content-svc"
-      image     = "node:18-alpine"
+      image     = local.container_image
       essential = true
       portMappings = [{
         containerPort = 3000
@@ -109,7 +113,7 @@ resource "aws_ecs_task_definition" "analytics" {
   container_definitions = jsonencode([
     {
       name      = "analytics-svc"
-      image     = "node:18-alpine"
+      image     = local.container_image
       essential = true
       portMappings = [{
         containerPort = 3000
@@ -282,6 +286,56 @@ resource "aws_appautoscaling_policy" "cpu" {
   resource_id        = aws_appautoscaling_target.ecs.resource_id
   scalable_dimension = aws_appautoscaling_target.ecs.scalable_dimension
   service_namespace  = aws_appautoscaling_target.ecs.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    target_value       = 70
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageCPUUtilization"
+    }
+    scale_in_cooldown  = 300
+    scale_out_cooldown = 300
+  }
+}
+
+resource "aws_appautoscaling_target" "content" {
+  max_capacity       = 3
+  min_capacity       = 1
+  resource_id        = "service/${aws_ecs_cluster.this.name}/${aws_ecs_service.content.name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+}
+
+resource "aws_appautoscaling_policy" "content_cpu" {
+  name               = "content-cpu-scaling"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.content.resource_id
+  scalable_dimension = aws_appautoscaling_target.content.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.content.service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    target_value       = 70
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageCPUUtilization"
+    }
+    scale_in_cooldown  = 300
+    scale_out_cooldown = 300
+  }
+}
+
+resource "aws_appautoscaling_target" "analytics" {
+  max_capacity       = 3
+  min_capacity       = 1
+  resource_id        = "service/${aws_ecs_cluster.this.name}/${aws_ecs_service.analytics.name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+}
+
+resource "aws_appautoscaling_policy" "analytics_cpu" {
+  name               = "analytics-cpu-scaling"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.analytics.resource_id
+  scalable_dimension = aws_appautoscaling_target.analytics.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.analytics.service_namespace
 
   target_tracking_scaling_policy_configuration {
     target_value       = 70

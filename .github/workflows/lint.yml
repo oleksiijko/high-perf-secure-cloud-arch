@@ -1,0 +1,12 @@
+name: lint
+on: push
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v2
+      - name: Terraform fmt
+        run: terraform -chdir=terraform fmt -check
+      - name: Docker Compose config
+        run: docker compose config -q

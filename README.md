@@ -15,6 +15,11 @@ This repository accompanies the article **"Architectural Solutions for High-Perf
 docker-compose up -d
 ```
 
+### Build custom images
+```bash
+docker compose build
+```
+
 ### Run Load Tests
 ```bash
 # run-tests
@@ -43,7 +48,8 @@ terraform -chdir=terraform apply
 The provided configuration deploys a small ECS cluster behind an Application Load Balancer. Autoscaling keeps 1–3 tasks running based on CPU load.
 
 ## JMeter Example
-Use the following command line when running tests. JMeter sends requests to `http://localhost:3001` by default:
+Install JMeter via `brew install jmeter` or download it from the [official archive](https://jmeter.apache.org/download_jmeter.cgi).
+The test plan targets port 3001 by default. Override it with `-Jport=3002` if needed.
 ```bash
 jmeter -n -t jmeter/microservices-test-plan.jmx \
     -Jjwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
