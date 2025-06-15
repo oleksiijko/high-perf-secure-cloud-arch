@@ -27,6 +27,7 @@
         </elementProp>
       </ThreadGroup>
       <hashTree>
+        <!--
         <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="JWT Header" enabled="true">
           <collectionProp name="HeaderManager.headers">
             <elementProp name="" elementType="Header">
@@ -36,6 +37,7 @@
           </collectionProp>
         </HeaderManager>
         <hashTree/>
+        -->
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET profile" enabled="true">
           <stringProp name="HTTPSampler.domain">localhost</stringProp>
           <stringProp name="HTTPSampler.port">${port}</stringProp>
