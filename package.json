@@ -6,11 +6,6 @@
     "test": "jest --silent"
   },
   "devDependencies": {
-    "jest": "^29.7.0"
-  },
-  "workspaces": [
-    "src/account-svc",
-    "src/content-svc",
-    "src/analytics-svc"
-  ]
+    "jest": "29.7.0"
+  }
 }
