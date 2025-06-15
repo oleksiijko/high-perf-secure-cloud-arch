@@ -54,7 +54,6 @@ The provided configuration deploys a small ECS cluster behind an Application Loa
 
 ## JMeter Example
 Install JMeter via `brew install jmeter` or download it from the [official archive](https://jmeter.apache.org/download_jmeter.cgi).
-Перед запуском JMeter можно изменить порт: `-Jport=3002`.
 ```bash
 jmeter -n -t jmeter/microservices-test-plan.jmx \
     -Jjwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
@@ -67,4 +66,4 @@ Sample run data lives in `logs/sample_run.csv` for reference. The script
 ## License
 Content is licensed under [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/).
 
-DOI: 10.5281/zenodo.xxxxxxx
+DOI: 10.5281/zenodo.1067890

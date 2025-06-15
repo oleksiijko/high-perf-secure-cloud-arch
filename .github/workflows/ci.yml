@@ -4,7 +4,8 @@ on: [push, pull_request]
 jobs:
   lint-test:
     runs-on: ubuntu-latest
-    env: { CI_SANDBOX: ${{ env.ACT || 'true' }} }
+    env:
+      CI_SANDBOX: ${{ env.ACT || 'true' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -15,6 +16,8 @@ jobs:
 
       # --- Terraform ---
       - uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: '1.7.5'
       - name: terraform fmt
         run: terraform -chdir=terraform fmt -recursive -check
       - name: terraform validate
