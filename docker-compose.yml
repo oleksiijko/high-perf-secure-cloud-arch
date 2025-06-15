@@ -2,8 +2,7 @@ version: '3.9'  # Compose specification
 
 services:
   account-svc:
-    image: node:18-alpine
-    command: node /app/server.js
+    build: ./src/account-svc
     volumes:
       - ./src/account-svc/server.js:/app/server.js
     ports:
@@ -17,8 +16,7 @@ services:
       - internal_net
 
   content-svc:
-    image: node:18-alpine
-    command: node /app/server.js
+    build: ./src/content-svc
     volumes:
       - ./src/content-svc/server.js:/app/server.js
     ports:
@@ -32,8 +30,7 @@ services:
       - internal_net
 
   analytics-svc:
-    image: node:18-alpine
-    command: node /app/server.js
+    build: ./src/analytics-svc
     volumes:
       - ./src/analytics-svc/server.js:/app/server.js
     ports:
