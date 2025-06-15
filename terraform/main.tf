@@ -67,7 +67,63 @@ resource "aws_ecs_task_definition" "account" {
   ])
 }
 
-# TODO: add task definitions for content-svc and analytics-svc
+# Task definition for content-svc
+resource "aws_ecs_task_definition" "content" {
+  family                   = "content-svc"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
+  execution_role_arn       = aws_iam_role.task_exec.arn
+  task_role_arn            = aws_iam_role.task_exec.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "content-svc"
+      image     = "node:18-alpine"
+      essential = true
+      portMappings = [{
+        containerPort = 3000
+      }]
+      healthCheck = {
+        command     = ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+        interval    = 30
+        timeout     = 5
+        retries     = 3
+        startPeriod = 10
+      }
+    }
+  ])
+}
+
+# Task definition for analytics-svc
+resource "aws_ecs_task_definition" "analytics" {
+  family                   = "analytics-svc"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
+  execution_role_arn       = aws_iam_role.task_exec.arn
+  task_role_arn            = aws_iam_role.task_exec.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "analytics-svc"
+      image     = "node:18-alpine"
+      essential = true
+      portMappings = [{
+        containerPort = 3000
+      }]
+      healthCheck = {
+        command     = ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+        interval    = 30
+        timeout     = 5
+        retries     = 3
+        startPeriod = 10
+      }
+    }
+  ])
+}
 
 # Load balancer resources
 resource "aws_lb" "public" {
@@ -155,6 +211,54 @@ resource "aws_ecs_service" "account" {
   load_balancer {
     target_group_arn = aws_lb_target_group.tg.arn
     container_name   = "account-svc"
+    container_port   = 3000
+  }
+
+  lifecycle {
+    ignore_changes = [desired_count]
+  }
+}
+
+# ECS service for content-svc
+resource "aws_ecs_service" "content" {
+  name            = "content-svc"
+  cluster         = aws_ecs_cluster.this.id
+  task_definition = aws_ecs_task_definition.content.arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets         = data.aws_subnets.public.ids
+    security_groups = [aws_security_group.ecs.id]
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.tg.arn
+    container_name   = "content-svc"
+    container_port   = 3000
+  }
+
+  lifecycle {
+    ignore_changes = [desired_count]
+  }
+}
+
+# ECS service for analytics-svc
+resource "aws_ecs_service" "analytics" {
+  name            = "analytics-svc"
+  cluster         = aws_ecs_cluster.this.id
+  task_definition = aws_ecs_task_definition.analytics.arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets         = data.aws_subnets.public.ids
+    security_groups = [aws_security_group.ecs.id]
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.tg.arn
+    container_name   = "analytics-svc"
     container_port   = 3000
   }
 
