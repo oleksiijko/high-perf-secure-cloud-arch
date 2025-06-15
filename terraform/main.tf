@@ -23,7 +23,7 @@ resource "aws_ecs_cluster" "this" {
 
 # IAM role for task execution
 resource "aws_iam_role" "task_exec" {
-  name = "ecsTaskExecutionRole"
+  name               = "ecsTaskExecutionRole"
   assume_role_policy = data.aws_iam_policy_document.ecs_task.json
 }
 
@@ -288,7 +288,7 @@ resource "aws_appautoscaling_policy" "cpu" {
   service_namespace  = aws_appautoscaling_target.ecs.service_namespace
 
   target_tracking_scaling_policy_configuration {
-    target_value       = 70
+    target_value = 70
     predefined_metric_specification {
       predefined_metric_type = "ECSServiceAverageCPUUtilization"
     }
@@ -313,7 +313,7 @@ resource "aws_appautoscaling_policy" "content_cpu" {
   service_namespace  = aws_appautoscaling_target.content.service_namespace
 
   target_tracking_scaling_policy_configuration {
-    target_value       = 70
+    target_value = 70
     predefined_metric_specification {
       predefined_metric_type = "ECSServiceAverageCPUUtilization"
     }
@@ -338,7 +338,7 @@ resource "aws_appautoscaling_policy" "analytics_cpu" {
   service_namespace  = aws_appautoscaling_target.analytics.service_namespace
 
   target_tracking_scaling_policy_configuration {
-    target_value       = 70
+    target_value = 70
     predefined_metric_specification {
       predefined_metric_type = "ECSServiceAverageCPUUtilization"
     }
