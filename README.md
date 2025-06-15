@@ -12,13 +12,12 @@ This repository accompanies the article **"Architectural Solutions for High-Perf
 
 ## Quick Start
 
-### Build and Start Services
+### Build and Start Services over HTTPS
 ```bash
 docker compose build
-npm test
-# build-up
-docker-compose up -d
+docker compose up -d
 ```
+The services listen on HTTPS using self-signed certificates found in `certs/`. Docker mounts this folder automatically.
 
 ### Build custom images
 ```bash
@@ -56,6 +55,13 @@ Run `terraform -chdir=terraform init` once to download providers and then
 `terraform -chdir=terraform apply` to create the infrastructure.
 The provided configuration deploys a small ECS cluster behind an Application Load Balancer. Autoscaling keeps 1–3 tasks running based on CPU load.
 
+### Generate Metrics and Graphs
+After running load tests, aggregate logs and create graphs:
+```bash
+python3 scripts/aggregate_metrics.py
+python3 scripts/plot_metrics.py
+```
+
 ## JMeter Example
 Install JMeter via `brew install jmeter` or download it from the [official archive](https://jmeter.apache.org/download_jmeter.cgi).
 ```bash
@@ -65,6 +71,13 @@ jmeter -n -t jmeter/microservices-test-plan.jmx
 ## Logs
 Sample run data lives in `logs/sample_run.csv` for reference. Running
 `python metrics.py` generates `reports/metrics_report.pdf`.
+
+## Security
+All API calls require a JWT via the `Authorization` header:
+```http
+Authorization: Bearer <token>
+```
+Tokens are verified with the dummy secret `demo-secret`.
 
 ## Supplementary Material
 [Supplementary_S1.zip](docs/Supplementary_S1.zip) contains additional datasets.

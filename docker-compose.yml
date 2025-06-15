@@ -5,16 +5,29 @@ services:
     build: ./src/account-svc
     command: node /app/server.js
     ports: ["3001:3000"]
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      - CERT_DIR=/certs
 
   content-svc:
     build: ./src/content-svc
     command: node /app/server.js
     ports: ["3002:3000"]
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      - CERT_DIR=/certs
 
   analytics-svc:
     build: ./src/analytics-svc
     command: node /app/server.js
     ports: ["3003:3000"]
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      - CERT_DIR=/certs
+      - REDIS_URL=redis://redis:6379
 
   redis:
     image: redis:7-alpine
