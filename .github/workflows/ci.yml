@@ -41,6 +41,8 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with: { python-version: '3.11' }
+      - name: Install JMeter
+        run: sudo apt-get update && sudo apt-get install -y jmeter
       - name: Run JMeter
         run: jmeter -n -t jmeter/microservices-test-plan.jmx -l logs/sample_run.csv
       - run: python3 scripts/aggregate_metrics.py
