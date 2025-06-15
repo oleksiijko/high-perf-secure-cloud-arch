@@ -4,14 +4,17 @@ services:
   account-svc:
     build: ./src/account-svc
     command: node /app/server.js
+    ports: ["3001:3000"]
 
   content-svc:
     build: ./src/content-svc
     command: node /app/server.js
+    ports: ["3002:3000"]
 
   analytics-svc:
     build: ./src/analytics-svc
     command: node /app/server.js
+    ports: ["3003:3000"]
 
   redis:
     image: redis:7-alpine

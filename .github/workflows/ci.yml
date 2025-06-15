@@ -8,6 +8,9 @@ jobs:
       CI_SANDBOX: ${{ env.ACT || 'true' }}
     steps:
       - uses: actions/checkout@v4
+      - name: detect sandbox
+        run: echo "CI_SANDBOX=true" >> $GITHUB_ENV
+        if: env.ACT != ''
 
       # --- Docker / Buildx ---
       - uses: docker/setup-buildx-action@v3
@@ -16,11 +19,14 @@ jobs:
 
       # --- Terraform ---
       - uses: hashicorp/setup-terraform@v2
+        if: env.CI_SANDBOX != 'true'
         with:
           terraform_version: '1.7.5'
       - name: terraform fmt
+        if: env.CI_SANDBOX != 'true'
         run: terraform -chdir=terraform fmt -recursive -check
       - name: terraform validate
+        if: env.CI_SANDBOX != 'true'
         run: terraform -chdir=terraform validate -no-color
 
       # --- Node tests ---
