@@ -1,0 +1,26 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- Docker / Buildx ---
+      - uses: docker/setup-buildx-action@v3
+      - name: docker compose config
+        run: docker compose config -q
+
+      # --- Terraform ---
+      - uses: hashicorp/setup-terraform@v2
+      - name: terraform fmt
+        run: terraform -chdir=terraform fmt -recursive -check
+      - name: terraform validate
+        run: terraform -chdir=terraform validate -no-color
+
+      # --- Node tests ---
+      - uses: actions/setup-node@v4
+        with: {node-version: '18', cache: 'npm'}
+      - run: npm ci
+      - run: npm test --passWithNoTests
