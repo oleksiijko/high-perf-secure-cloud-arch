@@ -45,14 +45,6 @@ jmeter -n -t jmeter/microservices-test-plan.jmx -Jjwt=<your_jwt>
 terraform -chdir=terraform destroy
 ```
 
-## Local ports
-
-| Service        | Port |
-|---------------|------|
-| account-svc   | 3001 |
-| content-svc   | 3002 |
-| analytics-svc | 3003 |
-
 ## Architecture Diagram
 ![System Architecture](docs/architecture.png)
 
