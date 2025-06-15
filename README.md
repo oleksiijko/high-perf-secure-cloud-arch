@@ -14,15 +14,13 @@ This repository accompanies the article **"Architectural Solutions for High-Perf
 
 ### Build and Start Services
 ```bash
+# build containers and start HTTPS services
 docker compose build
-npm test
-# build-up
-docker-compose up -d
+docker compose up -d
 ```
-
-### Build custom images
+Each service exposes HTTPS with self-signed certificates. For local testing use `-k` with curl:
 ```bash
-docker compose build
+curl -k -H "Authorization: Bearer demo" https://localhost:3001/health
 ```
 
 ### Run Tests
@@ -30,41 +28,32 @@ docker compose build
 npm ci
 npm test
 ```
-Run `python metrics.py` to aggregate metrics and generate a PDF report.
+Run `python3 scripts/plot_metrics.py` and `python3 scripts/aggregate_metrics.py` to generate graphs and metrics reports.
 
-### Run Load Tests
-```bash
-# run-tests
-jmeter -n -t jmeter/microservices-test-plan.jmx
-```
-
-### Tear Down Infrastructure
-```bash
-# teardown
-terraform -chdir=terraform destroy
-```
-
-## Architecture Diagram
-![System Architecture](docs/architecture.png)
-
-## Terraform Usage
+### Terraform
 ```bash
 terraform -chdir=terraform init
 terraform -chdir=terraform apply
 ```
-Run `terraform -chdir=terraform init` once to download providers and then
-`terraform -chdir=terraform apply` to create the infrastructure.
-The provided configuration deploys a small ECS cluster behind an Application Load Balancer. Autoscaling keeps 1–3 tasks running based on CPU load.
+This deploys an ECS cluster behind an Application Load Balancer with autoscaling.
 
-## JMeter Example
-Install JMeter via `brew install jmeter` or download it from the [official archive](https://jmeter.apache.org/download_jmeter.cgi).
+## Security
+Services expect a JWT in the `Authorization` header:
+```
+Authorization: Bearer <token>
+```
+A simple IDS check blocks requests containing the string `' OR 1=1`.
+
+## Local Benchmark
+Load tests can be executed with JMeter:
 ```bash
-jmeter -n -t jmeter/microservices-test-plan.jmx
+jmeter -n -t jmeter/microservices-test-plan.jmx -l logs/secure_run.csv
+python3 scripts/aggregate_metrics.py --baseline logs/baseline_run.csv --secure logs/secure_run.csv
+python3 scripts/plot_metrics.py
 ```
 
 ## Logs
-Sample run data lives in `logs/sample_run.csv` for reference. Running
-`python metrics.py` generates `reports/metrics_report.pdf`.
+Sample run data lives in `logs/sample_run.csv` for reference. Generated charts are saved to `reports/perf-baseline-vs-micro.png`.
 
 ## Supplementary Material
 [Supplementary_S1.zip](docs/Supplementary_S1.zip) contains additional datasets.
