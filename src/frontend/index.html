@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Demo Frontend</title>
+</head>
+<body>
+  <h1>Microservices Demo</h1>
+  <button id="profile">Get Profile</button>
+  <pre id="profile-result"></pre>
+  <button id="post-content">Post Content</button>
+  <pre id="content-result"></pre>
+  <button id="analytics">Get Analytics</button>
+  <pre id="analytics-result"></pre>
+<script>
+const token = 'dummy';
+
+document.getElementById('profile').onclick = () => {
+  fetch('/account/api/profile', { headers: { 'Authorization': 'Bearer ' + token } })
+    .then(r => r.json())
+    .then(d => document.getElementById('profile-result').textContent = JSON.stringify(d, null, 2));
+};
+
+document.getElementById('post-content').onclick = () => {
+  fetch('/content/api/content', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data: 'demo' })
+  })
+    .then(r => r.json())
+    .then(d => document.getElementById('content-result').textContent = JSON.stringify(d, null, 2));
+};
+
+document.getElementById('analytics').onclick = () => {
+  fetch('/analytics/api/analytics', { headers: { 'Authorization': 'Bearer ' + token } })
+    .then(r => r.json())
+    .then(d => document.getElementById('analytics-result').textContent = JSON.stringify(d, null, 2));
+};
+</script>
+</body>
+</html>

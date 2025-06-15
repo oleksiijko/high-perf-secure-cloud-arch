@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: account-svc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: account-svc
+  template:
+    metadata:
+      labels:
+        app: account-svc
+        role: backend
+    spec:
+      containers:
+        - name: account-svc
+          image: account-svc:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: CERT_DIR
+              value: /certs
+          volumeMounts:
+            - name: tls
+              mountPath: /certs
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+      volumes:
+        - name: tls
+          secret:
+            secretName: tls-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: account-svc
+spec:
+  selector:
+    app: account-svc
+  ports:
+    - port: 80
+      targetPort: 3000
