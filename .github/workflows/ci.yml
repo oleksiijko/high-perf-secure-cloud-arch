@@ -26,7 +26,7 @@ jobs:
         with:
           terraform_version: '1.7.5'
       - name: Terraform format check
-        run: terraform -chdir=terraform fmt -recursive -check
+        run: terraform -chdir=terraform fmt -check -recursive
         
       - name: Terraform init
         run: terraform -chdir=terraform init -no-color -backend=false
@@ -49,10 +49,13 @@ jobs:
           echo "/opt/jmeter/bin" >> $GITHUB_PATH
       - name: Run JMeter
         run: jmeter -n -t jmeter/microservices-test-plan.jmx -l logs/sample_run.csv
+      - run: pip install pandas matplotlib
+      - run: python3 scripts/plot_metrics.py
       - run: python3 scripts/aggregate_metrics.py
 
       # --- Trivy Scan ---
       - name: Install Trivy
+        if: env.DOCKER_IMAGE != ''
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs

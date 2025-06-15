@@ -5,16 +5,28 @@ services:
     build: ./src/account-svc
     command: node /app/server.js
     ports: ["3001:3000"]
+    volumes:
+      - ./certs:/certs:ro
+    networks:
+      - internal_net
 
   content-svc:
     build: ./src/content-svc
     command: node /app/server.js
     ports: ["3002:3000"]
+    volumes:
+      - ./certs:/certs:ro
+    networks:
+      - internal_net
 
   analytics-svc:
     build: ./src/analytics-svc
     command: node /app/server.js
     ports: ["3003:3000"]
+    volumes:
+      - ./certs:/certs:ro
+    networks:
+      - internal_net
 
   redis:
     image: redis:7-alpine
