@@ -12,6 +12,7 @@ This repository accompanies the article **"Architectural Solutions for High-Perf
 ### Build and Start Services
 ```bash
 docker compose build
+npm test
 # build-up
 docker-compose up -d
 ```
@@ -41,6 +42,9 @@ terraform -chdir=terraform destroy
 | content-svc   | 3002 |
 | analytics-svc | 3003 |
 
+## Architecture Diagram
+![System Architecture](docs/architecture.png)
+
 ## Terraform Usage
 ```bash
 terraform -chdir=terraform init
@@ -57,7 +61,10 @@ jmeter -n -t jmeter/microservices-test-plan.jmx \
 ```
 
 ## Logs
-Sample run data lives in `logs/sample_run.csv` for reference.
+Sample run data lives in `logs/sample_run.csv` for reference. The script
+`scripts/plot_metrics.py` generates `reports/perf-baseline-vs-micro.pdf`.
 
 ## License
 Content is licensed under [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/).
+
+DOI: 10.5281/zenodo.xxxxxxx

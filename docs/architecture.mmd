@@ -1,0 +1,9 @@
+graph TD
+    APIGW[API Gateway] --> ALB[(ALB)]
+    ALB --> ECS[ECS Cluster]
+    ECS --> account[account-svc]
+    ECS --> content[content-svc]
+    ECS --> analytics[analytics-svc]
+    account --> redis[(Redis)]
+    content --> db[(DB)]
+    analytics --> db

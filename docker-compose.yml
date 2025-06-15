@@ -4,41 +4,14 @@ services:
   account-svc:
     build: ./src/account-svc
     command: node /app/server.js
-    ports:
-      - "3001:3000"
-    healthcheck:
-      test: ["CMD", "sh", "-c", "curl -f http://localhost:3000/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - internal_net
 
   content-svc:
     build: ./src/content-svc
     command: node /app/server.js
-    ports:
-      - "3002:3000"
-    healthcheck:
-      test: ["CMD", "sh", "-c", "curl -f http://localhost:3000/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - internal_net
 
   analytics-svc:
     build: ./src/analytics-svc
     command: node /app/server.js
-    ports:
-      - "3003:3000"
-    healthcheck:
-      test: ["CMD", "sh", "-c", "curl -f http://localhost:3000/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - internal_net
 
   redis:
     image: redis:7-alpine

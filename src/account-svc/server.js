@@ -3,5 +3,9 @@ const app = express();
 app.use(express.json());
 app.get('/health', (req, res) => res.send('healthy'));
 app.get('/api/profile', (req, res) => res.json({user: 'demo'}));
-app.listen(3000, () => console.log('account-svc listening'));
+if (require.main === module) {
+  app.listen(3000, () => console.log('account-svc listening'));
+}
+
+module.exports = app;
 
