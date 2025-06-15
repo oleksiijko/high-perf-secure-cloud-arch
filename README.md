@@ -12,13 +12,13 @@ This repository accompanies the article **"Architectural Solutions for High-Perf
 
 ## Quick Start
 
-### Build and Start Services
+### Build and Start Services (HTTPS)
 ```bash
 docker compose build
-npm test
-# build-up
-docker-compose up -d
+docker compose up -d
 ```
+Services expose HTTPS endpoints on ports 3001-3003 using the self-signed
+certificates from the `certs/` folder.
 
 ### Build custom images
 ```bash
@@ -30,7 +30,8 @@ docker compose build
 npm ci
 npm test
 ```
-Run `python metrics.py` to aggregate metrics and generate a PDF report.
+Run `python scripts/aggregate_metrics.py` to aggregate metrics and
+`python scripts/plot_metrics.py` to generate graphs under `reports/`.
 
 ### Run Load Tests
 ```bash
@@ -63,8 +64,32 @@ jmeter -n -t jmeter/microservices-test-plan.jmx
 ```
 
 ## Logs
-Sample run data lives in `logs/sample_run.csv` for reference. Running
-`python metrics.py` generates `reports/metrics_report.pdf`.
+Sample run data lives in `logs/baseline_run.csv` and `logs/secure_run.csv`.
+Run `python scripts/aggregate_metrics.py` followed by
+`python scripts/plot_metrics.py` to create reports.
+
+## Security
+All protected endpoints expect a JWT header:
+```
+Authorization: Bearer <your-token>
+```
+Tokens are validated using the secret `demo-secret`.
+
+### Local Testing
+```bash
+curl -k -H "Authorization: Bearer test" https://localhost:3001/api/profile
+```
+
+### CI Commands
+The GitHub Actions workflow runs:
+```bash
+npm ci && npm test
+terraform -chdir=terraform init -backend=false
+terraform -chdir=terraform fmt -check -recursive
+terraform -chdir=terraform validate
+python scripts/aggregate_metrics.py
+python scripts/plot_metrics.py
+```
 
 ## Supplementary Material
 [Supplementary_S1.zip](docs/Supplementary_S1.zip) contains additional datasets.
