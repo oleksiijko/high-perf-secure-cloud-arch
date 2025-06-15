@@ -1,18 +1,16 @@
 {
   "name": "high-perf-secure-cloud-arch",
+  "version": "1.0.0",
   "private": true,
+  "scripts": {
+    "test": "jest --silent"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
   "workspaces": [
     "src/account-svc",
     "src/content-svc",
     "src/analytics-svc"
-  ],
-  "scripts": {
-    "test": "jest",
-    "lint": "eslint ."
-  },
-  "devDependencies": {
-    "jest": "^29.6.1",
-    "supertest": "^6.3.3",
-    "eslint": "^8.56.0"
-  }
+  ]
 }
