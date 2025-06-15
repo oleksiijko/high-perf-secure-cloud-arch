@@ -1,4 +1,5 @@
 # high-perf-secure-cloud-arch
+![CI](https://github.com/oleksiijko/high-perf-secure-cloud-arch/actions/workflows/ci.yml/badge.svg)
 ## Current version: v1.0.0
 
 This repository accompanies the article **"Architectural Solutions for High-Performance Secure Cloud Applications"**. It demonstrates a simple microservices stack with infrastructure-as-code and load testing tools.
