@@ -9,7 +9,6 @@ This repository accompanies the article **"Architectural Solutions for High-Perf
 - Terraform >= 1.7
 - AWS CLI v2 configured with a free-tier account
 - `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` must be set for Terraform
-- `JWT` token used by JMeter load tests
 
 ## Quick Start
 
@@ -36,7 +35,7 @@ Run `python metrics.py` to aggregate metrics and generate a PDF report.
 ### Run Load Tests
 ```bash
 # run-tests
-jmeter -n -t jmeter/microservices-test-plan.jmx -Jjwt=<your_jwt>
+jmeter -n -t jmeter/microservices-test-plan.jmx
 ```
 
 ### Tear Down Infrastructure
@@ -60,8 +59,7 @@ The provided configuration deploys a small ECS cluster behind an Application Loa
 ## JMeter Example
 Install JMeter via `brew install jmeter` or download it from the [official archive](https://jmeter.apache.org/download_jmeter.cgi).
 ```bash
-jmeter -n -t jmeter/microservices-test-plan.jmx \
-    -Jjwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+jmeter -n -t jmeter/microservices-test-plan.jmx
 ```
 
 ## Logs
