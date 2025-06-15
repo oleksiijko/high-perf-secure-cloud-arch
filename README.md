@@ -66,4 +66,4 @@ Sample run data lives in `logs/sample_run.csv` for reference. The script
 ## License
 Content is licensed under [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/).
 
-DOI: 10.5281/zenodo.1067890
+DOI: 10.5281/zenodo.xxxxxxx
