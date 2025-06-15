@@ -11,6 +11,7 @@ This repository accompanies the article **"Architectural Solutions for High-Perf
 
 ### Build and Start Services
 ```bash
+docker compose build
 # build-up
 docker-compose up -d
 ```
@@ -49,7 +50,7 @@ The provided configuration deploys a small ECS cluster behind an Application Loa
 
 ## JMeter Example
 Install JMeter via `brew install jmeter` or download it from the [official archive](https://jmeter.apache.org/download_jmeter.cgi).
-The test plan targets port 3001 by default. Override it with `-Jport=3002` if needed.
+Перед запуском JMeter можно изменить порт: `-Jport=3002`.
 ```bash
 jmeter -n -t jmeter/microservices-test-plan.jmx \
     -Jjwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...

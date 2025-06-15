@@ -3,8 +3,7 @@ version: '3.9'  # Compose specification
 services:
   account-svc:
     build: ./src/account-svc
-    volumes:
-      - ./src/account-svc/server.js:/app/server.js
+    command: node /app/server.js
     ports:
       - "3001:3000"
     healthcheck:
@@ -17,8 +16,7 @@ services:
 
   content-svc:
     build: ./src/content-svc
-    volumes:
-      - ./src/content-svc/server.js:/app/server.js
+    command: node /app/server.js
     ports:
       - "3002:3000"
     healthcheck:
@@ -31,8 +29,7 @@ services:
 
   analytics-svc:
     build: ./src/analytics-svc
-    volumes:
-      - ./src/analytics-svc/server.js:/app/server.js
+    command: node /app/server.js
     ports:
       - "3003:3000"
     healthcheck:
