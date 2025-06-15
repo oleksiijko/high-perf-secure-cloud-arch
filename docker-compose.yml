@@ -1,0 +1,44 @@
+version: '3.9'  # Compose specification
+
+services:
+  account-svc:
+    image: node:18-alpine
+    command: node account.js  # placeholder command
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - internal_net
+
+  content-svc:
+    image: node:18-alpine
+    command: node content.js
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - internal_net
+
+  analytics-svc:
+    image: node:18-alpine
+    command: node analytics.js
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - internal_net
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - internal_net
+
+networks:
+  internal_net:
+    driver: bridge
