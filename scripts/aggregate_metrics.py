@@ -8,7 +8,13 @@ except ModuleNotFoundError:
 import argparse
 
 def _load_metrics(path: str) -> tuple[float, float]:
-    df = pd.read_csv(path, parse_dates=["timestamp"])
+    df = pd.read_csv(path)
+    if df.empty:
+        return 0.0, 0.0
+
+    df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+    df["rt_ms"] = pd.to_numeric(df["rt_ms"], errors="coerce")
+    df = df.dropna(subset=["timestamp", "rt_ms"])
     if df.empty:
         return 0.0, 0.0
 
