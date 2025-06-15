@@ -3,7 +3,11 @@ version: '3.9'  # Compose specification
 services:
   account-svc:
     image: node:18-alpine
-    command: node account.js  # placeholder command
+    command: node /app/server.js
+    volumes:
+      - ./src/account-svc/server.js:/app/server.js
+    ports:
+      - "3001:3000"
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:3000/health || exit 1"]
       interval: 30s
@@ -14,7 +18,11 @@ services:
 
   content-svc:
     image: node:18-alpine
-    command: node content.js
+    command: node /app/server.js
+    volumes:
+      - ./src/content-svc/server.js:/app/server.js
+    ports:
+      - "3002:3000"
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:3000/health || exit 1"]
       interval: 30s
@@ -25,7 +33,11 @@ services:
 
   analytics-svc:
     image: node:18-alpine
-    command: node analytics.js
+    command: node /app/server.js
+    volumes:
+      - ./src/analytics-svc/server.js:/app/server.js
+    ports:
+      - "3003:3000"
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:3000/health || exit 1"]
       interval: 30s

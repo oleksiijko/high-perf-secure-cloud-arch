@@ -27,6 +27,14 @@ jmeter -n -t jmeter/microservices-test-plan.jmx -Jjwt=<your_jwt>
 terraform -chdir=terraform destroy
 ```
 
+## Local ports
+
+| Service        | Port |
+|---------------|------|
+| account-svc   | 3001 |
+| content-svc   | 3002 |
+| analytics-svc | 3003 |
+
 ## Terraform Usage
 ```bash
 terraform -chdir=terraform init
@@ -35,7 +43,7 @@ terraform -chdir=terraform apply
 The provided configuration deploys a small ECS cluster behind an Application Load Balancer. Autoscaling keeps 1–3 tasks running based on CPU load.
 
 ## JMeter Example
-Use the following command line when running tests:
+Use the following command line when running tests. JMeter sends requests to `http://localhost:3001` by default:
 ```bash
 jmeter -n -t jmeter/microservices-test-plan.jmx \
     -Jjwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
