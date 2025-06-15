@@ -26,8 +26,9 @@ jobs:
         run: terraform -chdir=terraform fmt -recursive -check
       - name: terraform validate
         run: terraform -chdir=terraform validate -no-color
+      - uses: terraform-linters/setup-tflint@v1
       - name: tflint
-        uses: terraform-linters/tflint-action@v1
+        run: tflint --chdir=terraform
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -36,5 +37,5 @@ jobs:
       - run: python3 scripts/aggregate_metrics.py
 
       - name: trivy
-        uses: aquasecurity/trivy-action@v0.14.0
+        uses: aquasecurity/trivy-action@0.14.0
 
