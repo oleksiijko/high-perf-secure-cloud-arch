@@ -1,0 +1,10 @@
+timestamp,url,rt_ms,http_code
+2024-01-01T00:00:01Z,/api/profile,123,200
+2024-01-01T00:00:02Z,/api/content,230,201
+2024-01-01T00:00:03Z,/api/analytics,150,200
+2024-01-01T00:00:04Z,/api/profile,110,200
+2024-01-01T00:00:05Z,/api/content,250,201
+2024-01-01T00:00:06Z,/api/analytics,180,200
+2024-01-01T00:00:07Z,/api/profile,135,200
+2024-01-01T00:00:08Z,/api/content,220,201
+2024-01-01T00:00:09Z,/api/analytics,175,200

@@ -43,21 +43,20 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
-        if args.baseline and args.secure:
-            baseline_tp, baseline_p95 = _load_metrics(args.baseline)
-            secure_tp, secure_p95 = _load_metrics(args.secure)
+        baseline_path = args.baseline or 'logs/baseline_run.csv'
+        secure_path = args.secure or 'logs/secure_run.csv'
+        baseline_tp, baseline_p95 = _load_metrics(baseline_path)
+        secure_tp, secure_p95 = _load_metrics(secure_path)
 
-            tp_gain = ((secure_tp - baseline_tp) / baseline_tp * 100) if baseline_tp else 0.0
-            latency_change = ((secure_p95 - baseline_p95) / baseline_p95 * 100) if baseline_p95 else 0.0
+        tp_gain = ((secure_tp - baseline_tp) / baseline_tp * 100) if baseline_tp else 0.0
+        latency_change = ((secure_p95 - baseline_p95) / baseline_p95 * 100) if baseline_p95 else 0.0
 
-            print(f"Throughput: {secure_tp:.1f} req/s")
-            print(f"95th-percentile latency: {secure_p95:.0f} ms")
-            print(f"Gain: {tp_gain:+.1f}% throughput, {latency_change:+.1f}% latency")
-        else:
-            file_path = args.baseline or args.secure or "logs/sample_run.csv"
-            tp, p95 = _load_metrics(file_path)
-            print(f"Throughput: {tp:.1f} req/s")
-            print(f"95th-percentile latency: {p95:.0f} ms")
+        print(f"Baseline throughput: {baseline_tp:.1f} req/s")
+        print(f"Secure throughput: {secure_tp:.1f} req/s")
+        print(f"Throughput change: {tp_gain:+.1f}%")
+        print(f"Baseline p95 latency: {baseline_p95:.0f} ms")
+        print(f"Secure p95 latency: {secure_p95:.0f} ms")
+        print(f"Latency change: {latency_change:+.1f}%")
     except FileNotFoundError:
         print("logs not found, skipping aggregation")
 
