@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "main": "server.js",
   "dependencies": {
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "pino": "^8.17.0",
+    "pino-http": "^8.1.0",
+    "redis": "^4.6.7"
   }
 }
