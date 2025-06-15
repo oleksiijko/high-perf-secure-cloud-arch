@@ -25,7 +25,7 @@ jobs:
       - uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: '1.7.5'
-      - name: terraform fmt
+      - name: Check Terraform format
         run: terraform -chdir=terraform fmt -recursive -check
       - name: terraform validate
         run: terraform -chdir=terraform validate -no-color
