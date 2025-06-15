@@ -1,4 +1,8 @@
-import pandas as pd
+try:
+    import pandas as pd
+except ModuleNotFoundError:
+    print("pandas not installed, skipping metrics aggregation")
+    exit(0)
 
 def main():
     pd.read_csv('logs/sample_run.csv')

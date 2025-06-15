@@ -4,13 +4,8 @@ on: [push, pull_request]
 jobs:
   lint-test:
     runs-on: ubuntu-latest
-    env:
-      CI_SANDBOX: ${{ env.ACT || 'true' }}
     steps:
       - uses: actions/checkout@v4
-      - name: detect sandbox
-        run: echo "CI_SANDBOX=true" >> $GITHUB_ENV
-        if: env.ACT != ''
 
       # --- Docker / Buildx ---
       - uses: docker/setup-buildx-action@v3
@@ -19,29 +14,24 @@ jobs:
 
       # --- Terraform ---
       - uses: hashicorp/setup-terraform@v2
-        if: env.CI_SANDBOX != 'true'
         with:
           terraform_version: '1.7.5'
       - name: terraform fmt
-        if: env.CI_SANDBOX != 'true'
         run: terraform -chdir=terraform fmt -recursive -check
       - name: terraform validate
-        if: env.CI_SANDBOX != 'true'
         run: terraform -chdir=terraform validate -no-color
 
       # --- Node tests ---
       - uses: actions/setup-node@v4
-        if: env.CI_SANDBOX != 'true'
-        with: {node-version: '18', cache: 'npm'}
+        with: { node-version: '18', cache: 'npm' }
       - run: npm ci
-        if: env.CI_SANDBOX != 'true'
-      - run: npm test --passWithNoTests
-        if: env.CI_SANDBOX != 'true'
+      - run: npm test
 
-      - name: Install Python deps
-        run: pip install pandas matplotlib
-        if: env.CI_SANDBOX != 'true'
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install pandas --quiet
+      - run: python3 scripts/aggregate_metrics.py
 
       - name: Generate architecture diagram
         run: npx -y @mermaid-js/mermaid-cli -i docs/architecture.mmd -o docs/architecture.png
-        if: env.CI_SANDBOX != 'true'

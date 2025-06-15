@@ -27,8 +27,10 @@ docker compose build
 
 ### Run Tests
 ```bash
+npm ci
 npm test
 ```
+The script `scripts/aggregate_metrics.py` aggregates JMeter metrics.
 
 ### Run Load Tests
 ```bash
