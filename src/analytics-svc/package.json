@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "main": "server.js",
   "dependencies": {
-    "express": "^4.19.2"
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "winston": "^3.13.0",
+    "redis": "^4.6.7"
   }
 }
