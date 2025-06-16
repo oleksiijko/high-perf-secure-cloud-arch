@@ -1,0 +1,136 @@
+# This workflow provisions a local Kubernetes cluster using kind and runs JMeter
+# performance tests against the microservices.
+#
+# To run these steps manually on your workstation:
+#   1. Install Docker, kubectl and kind (or minikube).
+#   2. Create a cluster with three nodes, for example:
+#        kind create cluster --config=- <<'CFG'
+#        kind: Cluster
+#        apiVersion: kind.x-k8s.io/v1alpha4
+#        nodes:
+#          - role: control-plane
+#          - role: worker
+#          - role: worker
+#        CFG
+#   3. kubectl apply -f k8s/ --recursive
+#      istioctl install -y --set profile=minimal  # optional
+#      kubectl apply -f k8s/istio/                # if Istio manifests exist
+#   4. Wait until all pods are ready:
+#        kubectl wait --for=condition=available deployment --all -A --timeout=600s
+#   5. Run the JMeter plan three times for each profile:
+#        mkdir results
+#        for p in light medium heavy; do
+#          for i in 1 2 3; do
+#            jmeter -n -t jmeter/microservices-test-plan.jmx \
+#                   -p jmeter/profiles/$p.properties \
+#                   -l results/$p-$i.jtl
+#          done
+#        done
+#   6. Aggregate metrics: python3 metrics.py results
+#
+name: Local Performance Test
+on:
+  workflow_dispatch:
+    inputs:
+      throughput_threshold:
+        description: 'Fail if mean throughput is below this value'
+        required: false
+      latency_threshold:
+        description: 'Fail if mean p95 latency is above this value'
+        required: false
+
+jobs:
+  perf:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      THROUGHPUT_THRESHOLD: ${{ github.event.inputs.throughput_threshold || '0' }}
+      LATENCY_THRESHOLD: ${{ github.event.inputs.latency_threshold || '1000000000' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: v1.28.0
+
+      - name: Set up kind cluster with 3 nodes
+        uses: engineerd/setup-kind@v0.5.0
+        with:
+          version: v0.20.0
+          config: |
+            kind: Cluster
+            apiVersion: kind.x-k8s.io/v1alpha4
+            nodes:
+              - role: control-plane
+              - role: worker
+              - role: worker
+
+      - name: Install Istio (optional)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          if [ -d "k8s/istio" ]; then
+            curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.20.1 sh -
+            ISTIO_DIR=$(ls -d istio-*)
+            echo "$ISTIO_DIR/bin" >> "$GITHUB_PATH"
+            istioctl install -y --set profile=minimal
+          fi
+
+      - name: Apply Kubernetes manifests
+        shell: bash
+        run: |
+          kubectl apply -f k8s/ --recursive
+          if [ -d "k8s/istio" ]; then
+            kubectl apply -f k8s/istio/
+          fi
+
+      - name: Wait for all pods
+        shell: bash
+        run: |
+          kubectl wait --for=condition=available deployment --all -A --timeout=600s
+
+      - name: Install JMeter on Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jmeter
+
+      - name: Install JMeter on macOS
+        if: runner.os == 'macOS'
+        shell: bash
+        run: brew install jmeter
+
+      - name: Install JMeter on Windows
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: choco install jmeter -y
+
+      - name: Run JMeter test plan
+        shell: bash
+        run: |
+          mkdir results
+          for p in light medium heavy; do
+            for i in 1 2 3; do
+              jmeter -n -t jmeter/microservices-test-plan.jmx \
+                     -p jmeter/profiles/${p}.properties \
+                     -l results/${p}-${i}.jtl
+            done
+          done
+
+      - name: Aggregate metrics
+        shell: bash
+        run: |
+          python3 metrics.py results | tee summary.txt
+
+      - name: Upload JMeter results
+        uses: actions/upload-artifact@v3
+        with:
+          name: jmeter-results-${{ matrix.os }}
+          path: |
+            results/*.jtl
+            summary.txt
+
