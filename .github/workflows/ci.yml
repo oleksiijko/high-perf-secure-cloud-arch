@@ -18,6 +18,7 @@ jobs:
       - run: npm ci --prefix src/content-svc
       - run: npm ci --prefix src/analytics-svc
       - run: npm ci --prefix src/crypto-svc
+      - run: npm ci --prefix src/api-gateway
       - run: npm test
 
       - uses: hashicorp/setup-terraform@v2
