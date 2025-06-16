@@ -5,3 +5,7 @@ output "cluster_name" {
 output "node_role" {
   value = aws_iam_role.node.name
 }
+
+output "cluster_arn" {
+  value = aws_ecs_cluster.this.arn
+}
