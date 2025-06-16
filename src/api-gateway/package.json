@@ -1,0 +1,10 @@
+{
+  "name": "api-gateway",
+  "version": "1.0.0",
+  "main": "server.js",
+  "dependencies": {
+    "express": "^4.21.2",
+    "redis": "^4.6.7",
+    "winston": "^3.13.0"
+  }
+}
