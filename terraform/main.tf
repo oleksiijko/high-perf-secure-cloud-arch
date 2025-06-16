@@ -5,6 +5,14 @@ terraform {
       source  = "hashicorp/aws"
       version = ">= 5.0"
     }
+    kubernetes = {
+      source = "hashicorp/kubernetes"
+      version = ">= 2.22"
+    }
+    helm = {
+      source = "hashicorp/helm"
+      version = ">= 2.11"
+    }
   }
 }
 
@@ -12,342 +20,7 @@ provider "aws" {
   region = var.region
 }
 
-locals {
-  container_image = "public.ecr.aws/docker/library/node:18-alpine"
-}
-
-# ECS cluster using Fargate free tier
-resource "aws_ecs_cluster" "this" {
-  name = "hp-secure-cloud-cluster"
-}
-
-# IAM role for task execution
-resource "aws_iam_role" "task_exec" {
-  name               = "ecsTaskExecutionRole"
-  assume_role_policy = data.aws_iam_policy_document.ecs_task.json
-}
-
-data "aws_iam_policy_document" "ecs_task" {
-  statement {
-    actions = ["sts:AssumeRole"]
-    principals {
-      type        = "Service"
-      identifiers = ["ecs-tasks.amazonaws.com"]
-    }
-  }
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
-  role       = aws_iam_role.task_exec.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-}
-
-# Task definition for account-svc
-resource "aws_ecs_task_definition" "account" {
-  family                   = "account-svc"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = "256"
-  memory                   = "512"
-  execution_role_arn       = aws_iam_role.task_exec.arn
-  task_role_arn            = aws_iam_role.task_exec.arn
-
-  container_definitions = jsonencode([
-    {
-      name      = "account-svc"
-      image     = local.container_image
-      essential = true
-      portMappings = [{
-        containerPort = 3000
-      }]
-      healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
-        interval    = 30
-        timeout     = 5
-        retries     = 3
-        startPeriod = 10
-      }
-    }
-  ])
-}
-
-# Task definition for content-svc
-resource "aws_ecs_task_definition" "content" {
-  family                   = "content-svc"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = "256"
-  memory                   = "512"
-  execution_role_arn       = aws_iam_role.task_exec.arn
-  task_role_arn            = aws_iam_role.task_exec.arn
-
-  container_definitions = jsonencode([
-    {
-      name      = "content-svc"
-      image     = local.container_image
-      essential = true
-      portMappings = [{
-        containerPort = 3000
-      }]
-      healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
-        interval    = 30
-        timeout     = 5
-        retries     = 3
-        startPeriod = 10
-      }
-    }
-  ])
-}
-
-# Task definition for analytics-svc
-resource "aws_ecs_task_definition" "analytics" {
-  family                   = "analytics-svc"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = "256"
-  memory                   = "512"
-  execution_role_arn       = aws_iam_role.task_exec.arn
-  task_role_arn            = aws_iam_role.task_exec.arn
-
-  container_definitions = jsonencode([
-    {
-      name      = "analytics-svc"
-      image     = local.container_image
-      essential = true
-      portMappings = [{
-        containerPort = 3000
-      }]
-      healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
-        interval    = 30
-        timeout     = 5
-        retries     = 3
-        startPeriod = 10
-      }
-    }
-  ])
-}
-
-# Load balancer resources
-resource "aws_lb" "public" {
-  name               = "hp-secure-lb"
-  load_balancer_type = "application"
-  subnets            = data.aws_subnets.public.ids
-}
-
-resource "aws_lb_target_group" "tg" {
-  name     = "hp-tg"
-  port     = 80
-  protocol = "HTTP"
-  vpc_id   = data.aws_vpc.main.id
-  health_check {
-    path                = "/health"
-    matcher             = "200"
-    interval            = 30
-    timeout             = 5
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-  }
-}
-
-resource "aws_lb_listener" "http" {
-  load_balancer_arn = aws_lb.public.arn
-  port              = 80
-  protocol          = "HTTP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.tg.arn
-  }
-}
-
-# Rule for /api/*
-resource "aws_lb_listener_rule" "api" {
-  listener_arn = aws_lb_listener.http.arn
-  priority     = 100
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.tg.arn
-  }
-
-  condition {
-    path_pattern {
-      values = ["/api/*"]
-    }
-  }
-}
-
-# Security group
-resource "aws_security_group" "ecs" {
-  name   = "ecs-sg"
-  vpc_id = data.aws_vpc.main.id
-
-  ingress {
-    protocol    = "tcp"
-    from_port   = 80
-    to_port     = 80
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    protocol    = "-1"
-    from_port   = 0
-    to_port     = 0
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-# ECS service for account-svc
-resource "aws_ecs_service" "account" {
-  name            = "account-svc"
-  cluster         = aws_ecs_cluster.this.id
-  task_definition = aws_ecs_task_definition.account.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
-
-  network_configuration {
-    subnets         = data.aws_subnets.public.ids
-    security_groups = [aws_security_group.ecs.id]
-  }
-
-  load_balancer {
-    target_group_arn = aws_lb_target_group.tg.arn
-    container_name   = "account-svc"
-    container_port   = 3000
-  }
-
-  lifecycle {
-    ignore_changes = [desired_count]
-  }
-}
-
-# ECS service for content-svc
-resource "aws_ecs_service" "content" {
-  name            = "content-svc"
-  cluster         = aws_ecs_cluster.this.id
-  task_definition = aws_ecs_task_definition.content.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
-
-  network_configuration {
-    subnets         = data.aws_subnets.public.ids
-    security_groups = [aws_security_group.ecs.id]
-  }
-
-  load_balancer {
-    target_group_arn = aws_lb_target_group.tg.arn
-    container_name   = "content-svc"
-    container_port   = 3000
-  }
-
-  lifecycle {
-    ignore_changes = [desired_count]
-  }
-}
-
-# ECS service for analytics-svc
-resource "aws_ecs_service" "analytics" {
-  name            = "analytics-svc"
-  cluster         = aws_ecs_cluster.this.id
-  task_definition = aws_ecs_task_definition.analytics.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
-
-  network_configuration {
-    subnets         = data.aws_subnets.public.ids
-    security_groups = [aws_security_group.ecs.id]
-  }
-
-  load_balancer {
-    target_group_arn = aws_lb_target_group.tg.arn
-    container_name   = "analytics-svc"
-    container_port   = 3000
-  }
-
-  lifecycle {
-    ignore_changes = [desired_count]
-  }
-}
-
-# Autoscaling between 1 and 3 tasks when CPU > 70%
-resource "aws_appautoscaling_target" "ecs" {
-  max_capacity       = 3
-  min_capacity       = 1
-  resource_id        = "service/${aws_ecs_cluster.this.name}/${aws_ecs_service.account.name}"
-  scalable_dimension = "ecs:service:DesiredCount"
-  service_namespace  = "ecs"
-}
-
-resource "aws_appautoscaling_policy" "cpu" {
-  name               = "cpu-scaling"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.ecs.resource_id
-  scalable_dimension = aws_appautoscaling_target.ecs.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.ecs.service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    target_value = 70
-    predefined_metric_specification {
-      predefined_metric_type = "ECSServiceAverageCPUUtilization"
-    }
-    scale_in_cooldown  = 300
-    scale_out_cooldown = 300
-  }
-}
-
-resource "aws_appautoscaling_target" "content" {
-  max_capacity       = 3
-  min_capacity       = 1
-  resource_id        = "service/${aws_ecs_cluster.this.name}/${aws_ecs_service.content.name}"
-  scalable_dimension = "ecs:service:DesiredCount"
-  service_namespace  = "ecs"
-}
-
-resource "aws_appautoscaling_policy" "content_cpu" {
-  name               = "content-cpu-scaling"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.content.resource_id
-  scalable_dimension = aws_appautoscaling_target.content.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.content.service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    target_value = 70
-    predefined_metric_specification {
-      predefined_metric_type = "ECSServiceAverageCPUUtilization"
-    }
-    scale_in_cooldown  = 300
-    scale_out_cooldown = 300
-  }
-}
-
-resource "aws_appautoscaling_target" "analytics" {
-  max_capacity       = 3
-  min_capacity       = 1
-  resource_id        = "service/${aws_ecs_cluster.this.name}/${aws_ecs_service.analytics.name}"
-  scalable_dimension = "ecs:service:DesiredCount"
-  service_namespace  = "ecs"
-}
-
-resource "aws_appautoscaling_policy" "analytics_cpu" {
-  name               = "analytics-cpu-scaling"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.analytics.resource_id
-  scalable_dimension = aws_appautoscaling_target.analytics.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.analytics.service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    target_value = 70
-    predefined_metric_specification {
-      predefined_metric_type = "ECSServiceAverageCPUUtilization"
-    }
-    scale_in_cooldown  = 300
-    scale_out_cooldown = 300
-  }
-}
-
-# Use default VPC and subnets
+# use default VPC and subnets
 data "aws_vpc" "main" {
   default = true
 }
@@ -357,4 +30,120 @@ data "aws_subnets" "public" {
     name   = "default-for-az"
     values = ["true"]
   }
+}
+
+# IAM roles
+data "aws_iam_policy_document" "eks_assume" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["eks.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "eks" {
+  name               = "eksClusterRole"
+  assume_role_policy = data.aws_iam_policy_document.eks_assume.json
+}
+
+resource "aws_iam_role_policy_attachment" "eks_cluster" {
+  role       = aws_iam_role.eks.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "eks_service" {
+  role       = aws_iam_role.eks.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSServicePolicy"
+}
+
+# node role
+data "aws_iam_policy_document" "node_assume" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "node" {
+  name               = "eksNodeRole"
+  assume_role_policy = data.aws_iam_policy_document.node_assume.json
+}
+
+resource "aws_iam_role_policy_attachment" "node_worker" {
+  role       = aws_iam_role.node.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "node_cni" {
+  role       = aws_iam_role.node.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+}
+
+resource "aws_iam_role_policy_attachment" "node_registry" {
+  role       = aws_iam_role.node.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
+
+# EKS cluster
+resource "aws_eks_cluster" "this" {
+  name     = "hp-secure-eks"
+  role_arn = aws_iam_role.eks.arn
+
+  vpc_config {
+    subnet_ids = data.aws_subnets.public.ids
+  }
+}
+
+resource "aws_eks_node_group" "default" {
+  cluster_name    = aws_eks_cluster.this.name
+  node_role_arn   = aws_iam_role.node.arn
+  subnet_ids      = data.aws_subnets.public.ids
+
+  scaling_config {
+    desired_size = 1
+    max_size     = 1
+    min_size     = 1
+  }
+
+  depends_on = [aws_eks_cluster.this]
+}
+
+# auth
+data "aws_eks_cluster_auth" "this" {
+  name = aws_eks_cluster.this.name
+}
+
+provider "kubernetes" {
+  host                   = aws_eks_cluster.this.endpoint
+  cluster_ca_certificate = base64decode(aws_eks_cluster.this.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.this.token
+}
+
+provider "helm" {
+  kubernetes {
+    host                   = aws_eks_cluster.this.endpoint
+    cluster_ca_certificate = base64decode(aws_eks_cluster.this.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.this.token
+  }
+}
+
+resource "helm_release" "istio_base" {
+  name       = "istio-base"
+  repository = "https://istio-release.storage.googleapis.com/charts"
+  chart      = "base"
+  version    = "1.20.2"
+}
+
+resource "helm_release" "istiod" {
+  name       = "istiod"
+  repository = "https://istio-release.storage.googleapis.com/charts"
+  chart      = "istiod"
+  version    = "1.20.2"
+  depends_on = [helm_release.istio_base]
+  values = [yamlencode({ global = { mtls = { enabled = true } } })]
 }
