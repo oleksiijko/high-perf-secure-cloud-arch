@@ -44,7 +44,10 @@ jobs:
           for profile in light medium heavy; do
             kubectl exec deploy/redis -- redis-cli FLUSHALL || true
             for i in 1 2 3; do
-              jmeter -n -t jmeter/microservices-test-plan.jmx -Jprofile=$profile -l results/${profile}-${i}.jtl
+              jmeter -n -t jmeter/microservices-test-plan.jmx \
+                -Jprofile=$profile \
+                -q jmeter/profiles/${profile}.properties \
+                -l results/${profile}-${i}.jtl
             done
           done
       - name: Calculate metrics

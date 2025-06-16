@@ -19,11 +19,6 @@
             <stringProp name="Argument.value">${__P(RAMP_UP,)}</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
-          <elementProp name="LOOPS" elementType="Argument">
-            <stringProp name="Argument.name">LOOPS</stringProp>
-            <stringProp name="Argument.value">${__P(LOOPS,)}</stringProp>
-            <stringProp name="Argument.metadata">=</stringProp>
-          </elementProp>
           <elementProp name="port" elementType="Argument">
             <stringProp name="Argument.name">port</stringProp>
             <stringProp name="Argument.value">3001</stringProp>
@@ -49,17 +44,17 @@
               case 'light':
                 props.put('THREADS', props.getProperty('THREADS','10'))
                 props.put('RAMP_UP', props.getProperty('RAMP_UP','30'))
-                props.put('LOOPS', props.getProperty('LOOPS','-1'))
+                props.put('DURATION', props.getProperty('DURATION','900'))
                 break
               case 'medium':
                 props.put('THREADS', props.getProperty('THREADS','50'))
                 props.put('RAMP_UP', props.getProperty('RAMP_UP','60'))
-                props.put('LOOPS', props.getProperty('LOOPS','-1'))
+                props.put('DURATION', props.getProperty('DURATION','900'))
                 break
               case 'heavy':
                 props.put('THREADS', props.getProperty('THREADS','100'))
                 props.put('RAMP_UP', props.getProperty('RAMP_UP','120'))
-                props.put('LOOPS', props.getProperty('LOOPS','-1'))
+                props.put('DURATION', props.getProperty('DURATION','900'))
                 break
             }
           </stringProp>
@@ -70,9 +65,11 @@
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Load Test" enabled="true">
         <stringProp name="ThreadGroup.num_threads">${THREADS}</stringProp>
         <stringProp name="ThreadGroup.ramp_time">${RAMP_UP}</stringProp>
+        <boolProp name="ThreadGroup.scheduler">true</boolProp>
+        <stringProp name="ThreadGroup.duration">${__P(DURATION,900)}</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
-          <boolProp name="LoopController.continue_forever">${__groovy(props.get('LOOPS','-1')=='-1')}</boolProp>
-          <stringProp name="LoopController.loops">${LOOPS}</stringProp>
+          <boolProp name="LoopController.continue_forever">true</boolProp>
+          <stringProp name="LoopController.loops">1</stringProp>
         </elementProp>
       </ThreadGroup>
       <hashTree>
