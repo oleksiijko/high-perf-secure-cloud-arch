@@ -30,11 +30,22 @@ app.use((req, res, next) => {
 });
 app.use(express.json());
 
-const redis = createClient({ url: process.env.REDIS_URL || 'redis://redis:6379' });
+const redis = createClient({
+  url: process.env.REDIS_URL || 'redis://redis:6379',
+  disableOfflineQueue: true,
+  socket: { connectTimeout: 1000 },
+});
+redis.on('error', err => logger.error(err));
 redis.connect().catch(err => logger.error(err));
 
 app.use(async (req, res, next) => {
-  await redis.incr('analytics:requests');
+  try {
+    if (redis.isReady) {
+      await redis.incr('analytics:requests');
+    }
+  } catch (err) {
+    logger.error(err);
+  }
   next();
 });
 
