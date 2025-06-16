@@ -30,8 +30,16 @@ app.use((req, res, next) => {
 });
 app.use(express.json());
 
-const redis = createClient({ url: process.env.REDIS_URL || 'redis://redis:6379' });
-redis.connect().catch(err => logger.error(err));
+let redis;
+if (process.env.NODE_ENV === 'test') {
+  redis = {
+    incr: async () => {},
+    get: async () => null,
+  };
+} else {
+  redis = createClient({ url: process.env.REDIS_URL || 'redis://redis:6379' });
+  redis.connect().catch(err => logger.error(err));
+}
 
 app.use(async (req, res, next) => {
   await redis.incr('analytics:requests');
