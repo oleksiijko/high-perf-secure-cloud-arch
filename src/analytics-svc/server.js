@@ -29,6 +29,7 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json());
+const policies = JSON.parse(fs.readFileSync(path.join(__dirname, 'policies.json')));
 
 const redis = createClient({ url: process.env.REDIS_URL || 'redis://redis:6379' });
 redis.connect().catch(err => logger.error(err));
@@ -42,7 +43,7 @@ app.use((req, res, next) => {
   const suspicious = /'\s*OR\s*1=1/i;
   const bodyStr = JSON.stringify(req.body || '');
   if (suspicious.test(req.url) || suspicious.test(bodyStr)) {
-    logger.warn('ALERT: возможная атака');
+    logger.warn('ALERT: возможная SQL-инъекция');
     return res.status(403).send('Forbidden');
   }
   next();
@@ -53,11 +54,15 @@ app.use((req, res, next) => {
   const auth = req.headers['authorization'] || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
   if (!token) return res.status(401).send('missing token');
+  let payload;
   try {
-    jwt.verify(token, 'demo-secret');
+    payload = jwt.verify(token, 'demo-secret');
   } catch {
     return res.status(401).send('invalid token');
   }
+  const allowed = (policies[payload.role] || []);
+  const ok = allowed.some(p => p === '*' || req.path.startsWith(p.replace('*', '')));
+  if (!ok) return res.status(403).send('forbidden');
   next();
 });
 

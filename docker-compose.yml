@@ -29,6 +29,16 @@ services:
       - CERT_DIR=/certs
       - REDIS_URL=redis://redis:6379
 
+  crypto-svc:
+    build: ./src/crypto-svc
+    command: node /app/server.js
+    ports: ["3004:3000"]
+    volumes:
+      - ./certs:/certs:ro
+    environment:
+      - CERT_DIR=/certs
+      - AES_KEY=0000000000000000000000000000000000000000000000000000000000000000
+
   redis:
     image: redis:7-alpine
     networks:
