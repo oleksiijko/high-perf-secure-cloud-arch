@@ -4,6 +4,8 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      IMAGE: ${{ github.event.inputs.image || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -12,28 +14,29 @@ jobs:
           node-version: '18'
           cache: 'npm'
       - run: npm ci
-      - run: npm install --prefix src/account-svc
-      - run: npm install --prefix src/content-svc
-      - run: npm install --prefix src/analytics-svc
-      - run: npm test || true
+      - run: npm ci --prefix src/account-svc
+      - run: npm ci --prefix src/content-svc
+      - run: npm ci --prefix src/analytics-svc
+      - run: npm ci --prefix src/crypto-svc
+      - run: npm test
 
       - uses: hashicorp/setup-terraform@v2
       - run: terraform -chdir=terraform init -backend=false
-      - run: terraform -chdir=terraform fmt -check -recursive
+      - run: terraform -chdir=terraform fmt -recursive -check
       - run: terraform -chdir=terraform validate
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - run: pip install pandas matplotlib
-      - run: python3 scripts/plot_metrics.py
       - run: python3 scripts/aggregate_metrics.py
+      - run: python3 scripts/plot_metrics.py
 
       - name: Trivy scan
-        if: env.DOCKER_IMAGE != ''
+        if: env.IMAGE != ''
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.DOCKER_IMAGE }}
+          image-ref: ${{ env.IMAGE }}
           format: table
           ignore-unfixed: true
           exit-code: '0'

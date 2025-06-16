@@ -4,33 +4,16 @@ const path = require('path');
 const https = require('https');
 const jwt = require('jsonwebtoken');
 const winston = require('winston');
-const app = express();
+const crypto = require('crypto');
 
+const app = express();
 const logger = winston.createLogger({
   transports: [new winston.transports.Console()],
 });
 
-const logFile = path.join(__dirname, '../../logs/sample_run.csv');
-if (!fs.existsSync(logFile)) {
-  fs.mkdirSync(path.dirname(logFile), { recursive: true });
-  fs.writeFileSync(logFile, 'timestamp,url,rt_ms,http_code\n');
-}
-
-app.use((req, res, next) => {
-  const start = process.hrtime.bigint();
-  res.on('finish', () => {
-    const end = process.hrtime.bigint();
-    const ms = Number(end - start) / 1e6;
-    const line = `${new Date().toISOString()},${req.originalUrl},${ms.toFixed(0)},${res.statusCode}\n`;
-    fs.appendFileSync(logFile, line);
-  });
-  logger.info(`${req.method} ${req.originalUrl}`);
-  next();
-});
-
 app.use(express.json());
 
-// IDS stub
+// simple IDS check
 app.use((req, res, next) => {
   const suspicious = /'\s*OR\s*1=1/i;
   const bodyStr = JSON.stringify(req.body || '');
@@ -41,14 +24,13 @@ app.use((req, res, next) => {
   next();
 });
 
-// ABAC policies
+// JWT + ABAC
 const policyPath = path.join(__dirname, 'policy.json');
 let policies = {};
 if (fs.existsSync(policyPath)) {
   policies = JSON.parse(fs.readFileSync(policyPath));
 }
 
-// JWT auth + ABAC
 app.use((req, res, next) => {
   if (req.path === '/health') return next();
   const auth = req.headers['authorization'] || '';
@@ -67,8 +49,41 @@ app.use((req, res, next) => {
   req.user = payload;
   next();
 });
+
+const ALGO = 'aes-256-gcm';
+const KEY = crypto.randomBytes(32);
+
 app.get('/health', (req, res) => res.send('healthy'));
-app.get('/api/profile', (req, res) => res.json({ user: 'demo' }));
+
+app.post('/encrypt', (req, res) => {
+  if (!req.body || typeof req.body.data !== 'string') {
+    return res.status(400).send('missing data');
+  }
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv(ALGO, KEY, iv);
+  let encrypted = cipher.update(req.body.data, 'utf8');
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
+  const tag = cipher.getAuthTag();
+  res.json({
+    data: encrypted.toString('base64'),
+    iv: iv.toString('base64'),
+    tag: tag.toString('base64'),
+  });
+});
+
+app.post('/decrypt', (req, res) => {
+  const { data, iv, tag } = req.body || {};
+  if (!data || !iv || !tag) return res.status(400).send('missing fields');
+  try {
+    const decipher = crypto.createDecipheriv(ALGO, KEY, Buffer.from(iv, 'base64'));
+    decipher.setAuthTag(Buffer.from(tag, 'base64'));
+    let decrypted = decipher.update(Buffer.from(data, 'base64'));
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    res.json({ data: decrypted.toString('utf8') });
+  } catch {
+    res.status(400).send('decrypt error');
+  }
+});
 
 module.exports = app;
 if (require.main === module) {
@@ -84,6 +99,5 @@ if (require.main === module) {
       },
       app
     )
-    .listen(3000, () => logger.info('account-svc listening on 3000'));
+    .listen(3000, () => logger.info('crypto-svc listening on 3000'));
 }
-

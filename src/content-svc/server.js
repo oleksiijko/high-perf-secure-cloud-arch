@@ -33,22 +33,34 @@ app.use((req, res, next) => {
   const suspicious = /'\s*OR\s*1=1/i;
   const bodyStr = JSON.stringify(req.body || '');
   if (suspicious.test(req.url) || suspicious.test(bodyStr)) {
-    logger.warn('ALERT: возможная атака');
+    logger.warn('ALERT: возможная SQL-инъекция');
     return res.status(403).send('Forbidden');
   }
   next();
 });
+
+const policyPath = path.join(__dirname, 'policy.json');
+let policies = {};
+if (fs.existsSync(policyPath)) {
+  policies = JSON.parse(fs.readFileSync(policyPath));
+}
 
 app.use((req, res, next) => {
   if (req.path === '/health') return next();
   const auth = req.headers['authorization'] || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
   if (!token) return res.status(401).send('missing token');
+  let payload;
   try {
-    jwt.verify(token, 'demo-secret');
+    payload = jwt.verify(token, 'demo-secret');
   } catch {
     return res.status(401).send('invalid token');
   }
+  const allowed = policies[req.path];
+  if (allowed && !allowed.includes(payload.role)) {
+    return res.status(403).send('forbidden');
+  }
+  req.user = payload;
   next();
 });
 

@@ -12,12 +12,18 @@ This repository accompanies the article **"Architectural Solutions for High-Perf
 
 ## Quick Start
 
-### Build and Start Services over HTTPS
+### Generate self-signed certificates
 ```bash
-docker compose build
+openssl req -x509 -newkey rsa:2048 -days 365 -nodes \
+  -keyout certs/server.key -out certs/server.crt -subj "/CN=localhost"
+cp certs/server.crt certs/ca.crt
+```
+
+### Start microservices over HTTPS
+```bash
 docker compose up -d
 ```
-The services listen on HTTPS using self-signed certificates found in `certs/`. Docker mounts this folder automatically.
+Each service uses mTLS with the certificates from `certs/`.
 
 ### Build custom images
 ```bash
@@ -29,7 +35,11 @@ docker compose build
 npm ci
 npm test
 ```
-Run `python metrics.py` to aggregate metrics and generate a PDF report.
+GitHub Actions executes the same commands in `.github/workflows/ci.yml`. Metrics can be aggregated locally with:
+```bash
+python3 scripts/aggregate_metrics.py
+python3 scripts/plot_metrics.py
+```
 
 ### Run Load Tests
 ```bash
@@ -51,9 +61,7 @@ terraform -chdir=terraform destroy
 terraform -chdir=terraform init
 terraform -chdir=terraform apply
 ```
-Run `terraform -chdir=terraform init` once to download providers and then
-`terraform -chdir=terraform apply` to create the infrastructure.
-The provided configuration deploys a small ECS cluster behind an Application Load Balancer. Autoscaling keeps 1–3 tasks running based on CPU load.
+This configuration provisions an EKS cluster with an Istio service mesh. mTLS is enabled between pods by default.
 
 ### Generate Metrics and Graphs
 After running load tests, aggregate logs and create graphs:
@@ -90,7 +98,14 @@ All API calls require a JWT via the `Authorization` header:
 ```http
 Authorization: Bearer <token>
 ```
-Tokens are verified with the dummy secret `demo-secret`.
+Tokens are verified with the dummy secret `demo-secret`. Payloads must contain a `role` claim used by the ABAC middleware. Example token payload:
+```json
+{
+  "sub": "123",
+  "role": "admin"
+}
+```
+IDS alerts are written to the service logs whenever a pattern like `' OR 1=1` appears in a request. Check `logs/` for details.
 
 ## Supplementary Material
 [Supplementary_S1.zip](docs/Supplementary_S1.zip) contains additional datasets.
