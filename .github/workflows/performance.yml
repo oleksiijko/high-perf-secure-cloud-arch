@@ -1,0 +1,69 @@
+name: Performance Tests
+
+on: [push, pull_request]
+
+env:
+  THROUGHPUT_THRESHOLD: ${{ secrets.THROUGHPUT_THRESHOLD }}
+  LATENCY_THRESHOLD: ${{ secrets.LATENCY_THRESHOLD }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v2
+      - name: Terraform init and apply
+        run: |
+          terraform -chdir=terraform init
+          terraform -chdir=terraform apply -auto-approve
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f k8s/
+          kubectl apply -f k8s/istio/
+
+  test:
+    runs-on: ubuntu-latest
+    needs: deploy
+    outputs:
+      result: ${{ steps.metrics.outputs.exit_code }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install JMeter
+        run: sudo apt-get update && sudo apt-get install -y jmeter
+      - name: Install Python dependencies
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: pip install pandas numpy
+      - name: Wait for pods
+        run: kubectl wait --for=condition=ready pods --all --timeout=300s
+      - name: Create results directory
+        run: mkdir -p results
+      - name: Run load tests
+        run: |
+          for profile in light medium heavy; do
+            for i in 1 2 3; do
+              kubectl exec deploy/redis -- redis-cli FLUSHALL
+              jmeter -n -t jmeter/microservices-test-plan.jmx -q jmeter/profiles/$profile.properties -Jprofile=$profile -l results/$profile-$i.jtl
+            done
+          done
+      - name: Compute metrics
+        id: metrics
+        run: |
+          python metrics.py results/
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
+        env:
+          THROUGHPUT_THRESHOLD: ${{ env.THROUGHPUT_THRESHOLD }}
+          LATENCY_THRESHOLD: ${{ env.LATENCY_THRESHOLD }}
+
+  gate:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Enforce performance gate
+        run: |
+          if [ "${{ needs.test.outputs.result }}" != "0" ]; then
+            echo "Performance thresholds not met"
+            exit 1
+          fi
+
