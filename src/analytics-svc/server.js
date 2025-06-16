@@ -30,8 +30,20 @@ app.use((req, res, next) => {
 });
 app.use(express.json());
 
-const redis = createClient({ url: process.env.REDIS_URL || 'redis://redis:6379' });
-redis.connect().catch(err => logger.error(err));
+// Use a simple in-memory counter when running tests to avoid Redis dependency
+let redis;
+let requestCount = 0;
+if (process.env.NODE_ENV === 'test') {
+  redis = {
+    incr: async () => {
+      requestCount += 1;
+    },
+    get: async () => requestCount.toString(),
+  };
+} else {
+  redis = createClient({ url: process.env.REDIS_URL || 'redis://redis:6379' });
+  redis.connect().catch(err => logger.error(err));
+}
 
 app.use(async (req, res, next) => {
   await redis.incr('analytics:requests');
