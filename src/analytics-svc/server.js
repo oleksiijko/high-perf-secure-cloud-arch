@@ -62,14 +62,19 @@ app.use((req, res, next) => {
 });
 
 const policyPath = path.join(__dirname, 'policy.json');
-let policies = {};
-if (fs.existsSync(policyPath)) {
-  policies = JSON.parse(fs.readFileSync(policyPath));
-}
 
 // ABAC enforcement middleware
 app.use((req, res, next) => {
   if (req.path === '/health') return next();
+  let policies = {};
+  try {
+    if (fs.existsSync(policyPath)) {
+      policies = JSON.parse(fs.readFileSync(policyPath));
+    }
+  } catch (err) {
+    logger.error('failed to load policy', err);
+    return res.status(500).send('policy error');
+  }
   const attrs = policies[req.path];
   const user = req.user;
   if (!user) return res.status(401).send('Unauthorized');
