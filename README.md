@@ -5,8 +5,11 @@
 This repository accompanies the article **"Architectural Solutions for High-Performance Secure Cloud Applications"**. It demonstrates a simple microservices stack with infrastructure-as-code and load testing tools.
 
 ## Requirements
-- Docker >= 24
-- Terraform >= 1.7
+- Docker 20.x
+- Kubernetes 1.24+
+- Terraform 1.4+
+- Istio 1.15+
+- Node.js 18.x
 - AWS CLI v2 configured with a free-tier account
 - `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` must be set for Terraform
 

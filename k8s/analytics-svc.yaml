@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: analytics-svc
+  namespace: microservices
 spec:
   replicas: 1
   selector:
@@ -13,6 +14,8 @@ spec:
         app: analytics-svc
         role: backend
     spec:
+      securityContext:
+        runAsNonRoot: true
       containers:
         - name: analytics-svc
           image: analytics-svc:latest
@@ -23,12 +26,21 @@ spec:
               value: /certs
             - name: REDIS_URL
               value: redis://redis:6379
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
           volumeMounts:
             - name: tls
               mountPath: /certs
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
       volumes:
         - name: tls
           secret:
@@ -38,6 +50,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: analytics-svc
+  namespace: microservices
 spec:
   selector:
     app: analytics-svc
