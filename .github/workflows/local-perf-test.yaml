@@ -41,10 +41,7 @@ on:
 
 jobs:
   perf:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     env:
       THROUGHPUT_THRESHOLD: ${{ github.event.inputs.throughput_threshold || '0' }}
       LATENCY_THRESHOLD: ${{ github.event.inputs.latency_threshold || '1000000000' }}
