@@ -1,5 +1,13 @@
 name: CI
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: "Container image for Trivy scan"
+        required: false
+        default: ""
 
 jobs:
   build:
@@ -12,10 +20,12 @@ jobs:
           node-version: '18'
           cache: 'npm'
       - run: npm ci
-      - run: npm install --prefix src/account-svc
-      - run: npm install --prefix src/content-svc
-      - run: npm install --prefix src/analytics-svc
-      - run: npm test || true
+      - run: npm ci --prefix src/account-svc
+      - run: npm test --prefix src/account-svc
+      - run: npm ci --prefix src/content-svc
+      - run: npm test --prefix src/content-svc
+      - run: npm ci --prefix src/analytics-svc
+      - run: npm test --prefix src/analytics-svc
 
       - uses: hashicorp/setup-terraform@v2
       - run: terraform -chdir=terraform init -backend=false
@@ -26,14 +36,14 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install pandas matplotlib
-      - run: python3 scripts/plot_metrics.py
       - run: python3 scripts/aggregate_metrics.py
+      - run: python3 scripts/plot_metrics.py
 
       - name: Trivy scan
-        if: env.DOCKER_IMAGE != ''
+        if: github.event.inputs.image != ''
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.DOCKER_IMAGE }}
+          image-ref: ${{ github.event.inputs.image }}
           format: table
           ignore-unfixed: true
           exit-code: '0'

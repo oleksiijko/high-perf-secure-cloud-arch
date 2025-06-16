@@ -12,12 +12,21 @@ This repository accompanies the article **"Architectural Solutions for High-Perf
 
 ## Quick Start
 
-### Build and Start Services over HTTPS
+### Generate certificates and run services
 ```bash
+# one-time generation
+./scripts/gen-certs.sh
+
+# build images and start
 docker compose build
 docker compose up -d
 ```
-The services listen on HTTPS using self-signed certificates found in `certs/`. Docker mounts this folder automatically.
+All services listen on HTTPS with mutual TLS. Certificates from `certs/` are loaded automatically.
+
+Generate a demo JWT with an `admin` role:
+```bash
+node -e "console.log(require('jsonwebtoken').sign({sub:'demo',role:'admin'},'demo-secret'))"
+```
 
 ### Build custom images
 ```bash
@@ -53,7 +62,7 @@ terraform -chdir=terraform apply
 ```
 Run `terraform -chdir=terraform init` once to download providers and then
 `terraform -chdir=terraform apply` to create the infrastructure.
-The provided configuration deploys a small ECS cluster behind an Application Load Balancer. Autoscaling keeps 1–3 tasks running based on CPU load.
+The Terraform module provisions an EKS cluster with a managed node group. Istio is installed automatically and mTLS is enforced between pods.
 
 ### Generate Metrics and Graphs
 After running load tests, aggregate logs and create graphs:
@@ -82,8 +91,14 @@ kubectl apply -f k8s/istio/
 ```
 
 ## Logs
-Sample run data lives in `logs/sample_run.csv` for reference. Running
-`python metrics.py` generates `reports/metrics_report.pdf`.
+Sample runs are stored in `logs/`. After running the services you can aggregate
+and visualise metrics locally:
+```bash
+python3 scripts/aggregate_metrics.py
+python3 scripts/plot_metrics.py
+```
+Any request containing `"' OR 1=1"` will trigger the IDS middleware and a line
+`ALERT: возможная SQL-инъекция` will appear in the service logs.
 
 ## Security
 All API calls require a JWT via the `Authorization` header:
@@ -91,6 +106,12 @@ All API calls require a JWT via the `Authorization` header:
 Authorization: Bearer <token>
 ```
 Tokens are verified with the dummy secret `demo-secret`.
+
+### Continuous Integration
+The workflow in `.github/workflows/ci.yml` installs Node.js and Python, runs the
+unit tests for each service, checks the Terraform configuration and executes the
+metric aggregation scripts. A Trivy scan runs only when an `image` argument is
+supplied.
 
 ## Supplementary Material
 [Supplementary_S1.zip](docs/Supplementary_S1.zip) contains additional datasets.
