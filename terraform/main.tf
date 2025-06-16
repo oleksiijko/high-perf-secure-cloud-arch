@@ -6,11 +6,11 @@ terraform {
       version = ">= 5.0"
     }
     kubernetes = {
-      source = "hashicorp/kubernetes"
+      source  = "hashicorp/kubernetes"
       version = ">= 2.22"
     }
     helm = {
-      source = "hashicorp/helm"
+      source  = "hashicorp/helm"
       version = ">= 2.11"
     }
   }
@@ -100,9 +100,9 @@ resource "aws_eks_cluster" "this" {
 }
 
 resource "aws_eks_node_group" "default" {
-  cluster_name    = aws_eks_cluster.this.name
-  node_role_arn   = aws_iam_role.node.arn
-  subnet_ids      = data.aws_subnets.public.ids
+  cluster_name  = aws_eks_cluster.this.name
+  node_role_arn = aws_iam_role.node.arn
+  subnet_ids    = data.aws_subnets.public.ids
 
   scaling_config {
     desired_size = 1
@@ -145,5 +145,5 @@ resource "helm_release" "istiod" {
   chart      = "istiod"
   version    = "1.20.2"
   depends_on = [helm_release.istio_base]
-  values = [yamlencode({ global = { mtls = { enabled = true } } })]
+  values     = [yamlencode({ global = { mtls = { enabled = true } } })]
 }
