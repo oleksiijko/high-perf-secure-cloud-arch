@@ -3,13 +3,9 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const jwt = require('jsonwebtoken');
-const winston = require('winston');
-const { createClient } = require('redis');
+const logger = require('winston');
+const Redis = require('ioredis');
 const app = express();
-
-const logger = winston.createLogger({
-  transports: [new winston.transports.Console()],
-});
 
 const logFile = path.join(__dirname, '../../logs/sample_run.csv');
 if (!fs.existsSync(logFile)) {
@@ -37,8 +33,7 @@ if (process.env.NODE_ENV === 'test') {
     get: async () => null,
   };
 } else {
-  redis = createClient({ url: process.env.REDIS_URL || 'redis://redis:6379' });
-  redis.connect().catch(err => logger.error(err));
+  redis = new Redis(process.env.REDIS_URL);
 }
 
 app.use(async (req, res, next) => {
@@ -47,13 +42,23 @@ app.use(async (req, res, next) => {
 });
 
 app.use((req, res, next) => {
-  const suspicious = /'\s*OR\s*1=1/i;
-  const bodyStr = JSON.stringify(req.body || '');
-  if (suspicious.test(req.url) || suspicious.test(bodyStr)) {
-    logger.warn('ALERT: возможная SQL-инъекция');
+  const raw = req.url + JSON.stringify(req.body);
+  if (raw.includes("' OR 1=1")) {
+    logger.warn('ALERT: возможная SQL-инъекция', { raw });
     return res.status(403).send('Forbidden');
   }
   next();
+});
+
+app.use((req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).send('Unauthorized');
+  try {
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    next();
+  } catch {
+    return res.status(401).send('Unauthorized');
+  }
 });
 
 const policyPath = path.join(__dirname, 'policy.json');
@@ -64,20 +69,12 @@ if (fs.existsSync(policyPath)) {
 
 app.use((req, res, next) => {
   if (req.path === '/health') return next();
-  const auth = req.headers['authorization'] || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  if (!token) return res.status(401).send('missing token');
-  let payload;
-  try {
-    payload = jwt.verify(token, 'demo-secret');
-  } catch {
-    return res.status(401).send('invalid token');
-  }
+  const payload = req.user;
+  if (!payload) return res.status(401).send('Unauthorized');
   const allowed = policies[req.path];
   if (allowed && !allowed.includes(payload.role)) {
     return res.status(403).send('forbidden');
   }
-  req.user = payload;
   next();
 });
 
@@ -89,18 +86,10 @@ app.get('/api/analytics', async (req, res) => {
 
 module.exports = app;
 if (require.main === module) {
-  const certDir = process.env.CERT_DIR || path.join(__dirname, '../../certs');
+  const key = fs.readFileSync(path.join(__dirname, 'key.pem'));
+  const cert = fs.readFileSync(path.join(__dirname, 'cert.pem'));
   https
-    .createServer(
-      {
-        key: fs.readFileSync(path.join(certDir, 'server.key')),
-        cert: fs.readFileSync(path.join(certDir, 'server.crt')),
-        ca: fs.readFileSync(path.join(certDir, 'ca.crt')),
-        requestCert: true,
-        rejectUnauthorized: false,
-      },
-      app
-    )
+    .createServer({ key, cert, requestCert: true, ca: [cert] }, app)
     .listen(3000, () => logger.info('analytics-svc listening on 3000'));
 }
 
