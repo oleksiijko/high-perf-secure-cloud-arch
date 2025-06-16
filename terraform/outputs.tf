@@ -7,5 +7,5 @@ output "node_role" {
 }
 
 output "cluster_arn" {
-  value = aws_ecs_cluster.this.arn
+  value = aws_eks_cluster.this.arn
 }
