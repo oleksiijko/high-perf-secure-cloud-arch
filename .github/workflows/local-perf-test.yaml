@@ -127,7 +127,7 @@ jobs:
           python3 metrics.py results | tee summary.txt
 
       - name: Upload JMeter results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: jmeter-results-${{ matrix.os }}
           path: |
