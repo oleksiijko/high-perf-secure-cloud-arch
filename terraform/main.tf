@@ -77,7 +77,7 @@ resource "aws_route_table_association" "public_b" {
 }
 
 resource "aws_eip" "nat" {
-  vpc = true
+  domain = "vpc"
 }
 
 resource "aws_nat_gateway" "nat" {
@@ -126,12 +126,12 @@ resource "aws_network_acl_rule" "public_out" {
   cidr_block     = "0.0.0.0/0"
 }
 
-resource "aws_subnet_network_acl_association" "public_a" {
+resource "aws_network_acl_association" "public_a" {
   subnet_id      = aws_subnet.public_a.id
   network_acl_id = aws_network_acl.public.id
 }
 
-resource "aws_subnet_network_acl_association" "public_b" {
+resource "aws_network_acl_association" "public_b" {
   subnet_id      = aws_subnet.public_b.id
   network_acl_id = aws_network_acl.public.id
 }
@@ -158,12 +158,12 @@ resource "aws_network_acl_rule" "private_out" {
   cidr_block     = "0.0.0.0/0"
 }
 
-resource "aws_subnet_network_acl_association" "private_a" {
+resource "aws_network_acl_association" "private_a" {
   subnet_id      = aws_subnet.private_a.id
   network_acl_id = aws_network_acl.private.id
 }
 
-resource "aws_subnet_network_acl_association" "private_b" {
+resource "aws_network_acl_association" "private_b" {
   subnet_id      = aws_subnet.private_b.id
   network_acl_id = aws_network_acl.private.id
 }
