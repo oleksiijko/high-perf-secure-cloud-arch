@@ -67,13 +67,20 @@ if (fs.existsSync(policyPath)) {
   policies = JSON.parse(fs.readFileSync(policyPath));
 }
 
+// ABAC enforcement middleware
 app.use((req, res, next) => {
   if (req.path === '/health') return next();
-  const payload = req.user;
-  if (!payload) return res.status(401).send('Unauthorized');
-  const allowed = policies[req.path];
-  if (allowed && !allowed.includes(payload.role)) {
-    return res.status(403).send('forbidden');
+  const attrs = policies[req.path];
+  const user = req.user;
+  if (!user) return res.status(401).send('Unauthorized');
+  if (attrs) {
+    if (Array.isArray(attrs)) {
+      if (!attrs.includes(user.role)) return res.status(403).send('Forbidden');
+    } else {
+      for (const [k, v] of Object.entries(attrs)) {
+        if (user[k] !== v) return res.status(403).send('Forbidden');
+      }
+    }
   }
   next();
 });
