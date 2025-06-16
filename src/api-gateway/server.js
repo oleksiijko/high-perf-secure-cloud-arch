@@ -4,6 +4,7 @@ const path = require('path');
 const https = require('https');
 const winston = require('winston');
 const { createClient } = require('redis');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const logger = winston.createLogger({
@@ -38,6 +39,12 @@ function createStore() {
 
 const store = createStore();
 
+const policyPath = path.join(__dirname, 'policy.json');
+let policies = {};
+if (fs.existsSync(policyPath)) {
+  policies = JSON.parse(fs.readFileSync(policyPath));
+}
+
 app.use(async (req, res, next) => {
   if (req.path === '/health') return next();
   try {
@@ -48,6 +55,25 @@ app.use(async (req, res, next) => {
   } catch (err) {
     logger.error(err);
   }
+  next();
+});
+
+app.use((req, res, next) => {
+  if (req.path === '/health') return next();
+  const auth = req.headers['authorization'] || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (!token) return res.status(401).send('missing token');
+  let payload;
+  try {
+    payload = jwt.verify(token, process.env.JWT_SECRET || 'demo-secret');
+  } catch {
+    return res.status(401).send('invalid token');
+  }
+  const allowed = policies[req.path];
+  if (allowed && !allowed.includes(payload.role)) {
+    return res.status(403).send('forbidden');
+  }
+  req.user = payload;
   next();
 });
 

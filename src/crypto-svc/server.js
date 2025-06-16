@@ -11,6 +11,17 @@ const logger = winston.createLogger({
   transports: [new winston.transports.Console()],
 });
 
+let hasAES = false;
+try {
+  const cpuinfo = fs.readFileSync('/proc/cpuinfo', 'utf8');
+  hasAES = cpuinfo.includes(' aes ');
+} catch {}
+logger.info(
+  hasAES
+    ? 'AES-NI detected, hardware crypto enabled'
+    : 'AES-NI not detected, falling back to software crypto'
+);
+
 app.use(express.json());
 
 // simple IDS check

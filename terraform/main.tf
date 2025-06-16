@@ -20,15 +20,190 @@ provider "aws" {
   region = var.region
 }
 
-# use default VPC and subnets
-data "aws_vpc" "main" {
-  default = true
+# VPC and networking
+data "aws_availability_zones" "azs" {}
+
+resource "aws_vpc" "this" {
+  cidr_block = "10.0.0.0/16"
 }
 
-data "aws_subnets" "public" {
-  filter {
-    name   = "default-for-az"
-    values = ["true"]
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.this.id
+}
+
+resource "aws_subnet" "public_a" {
+  vpc_id                  = aws_vpc.this.id
+  cidr_block              = "10.0.1.0/24"
+  availability_zone       = data.aws_availability_zones.azs.names[0]
+  map_public_ip_on_launch = true
+}
+
+resource "aws_subnet" "public_b" {
+  vpc_id                  = aws_vpc.this.id
+  cidr_block              = "10.0.2.0/24"
+  availability_zone       = data.aws_availability_zones.azs.names[1]
+  map_public_ip_on_launch = true
+}
+
+resource "aws_subnet" "private_a" {
+  vpc_id            = aws_vpc.this.id
+  cidr_block        = "10.0.10.0/24"
+  availability_zone = data.aws_availability_zones.azs.names[0]
+}
+
+resource "aws_subnet" "private_b" {
+  vpc_id            = aws_vpc.this.id
+  cidr_block        = "10.0.11.0/24"
+  availability_zone = data.aws_availability_zones.azs.names[1]
+}
+
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.this.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.igw.id
+  }
+}
+
+resource "aws_route_table_association" "public_a" {
+  subnet_id      = aws_subnet.public_a.id
+  route_table_id = aws_route_table.public.id
+}
+
+resource "aws_route_table_association" "public_b" {
+  subnet_id      = aws_subnet.public_b.id
+  route_table_id = aws_route_table.public.id
+}
+
+resource "aws_eip" "nat" {
+  vpc = true
+}
+
+resource "aws_nat_gateway" "nat" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.public_a.id
+}
+
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.this.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat.id
+  }
+}
+
+resource "aws_route_table_association" "private_a" {
+  subnet_id      = aws_subnet.private_a.id
+  route_table_id = aws_route_table.private.id
+}
+
+resource "aws_route_table_association" "private_b" {
+  subnet_id      = aws_subnet.private_b.id
+  route_table_id = aws_route_table.private.id
+}
+
+resource "aws_network_acl" "public" {
+  vpc_id = aws_vpc.this.id
+}
+
+resource "aws_network_acl_rule" "public_in" {
+  network_acl_id = aws_network_acl.public.id
+  rule_number    = 100
+  egress         = false
+  protocol       = "-1"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+}
+
+resource "aws_network_acl_rule" "public_out" {
+  network_acl_id = aws_network_acl.public.id
+  rule_number    = 100
+  egress         = true
+  protocol       = "-1"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+}
+
+resource "aws_subnet_network_acl_association" "public_a" {
+  subnet_id      = aws_subnet.public_a.id
+  network_acl_id = aws_network_acl.public.id
+}
+
+resource "aws_subnet_network_acl_association" "public_b" {
+  subnet_id      = aws_subnet.public_b.id
+  network_acl_id = aws_network_acl.public.id
+}
+
+resource "aws_network_acl" "private" {
+  vpc_id = aws_vpc.this.id
+}
+
+resource "aws_network_acl_rule" "private_in" {
+  network_acl_id = aws_network_acl.private.id
+  rule_number    = 100
+  egress         = false
+  protocol       = "-1"
+  rule_action    = "allow"
+  cidr_block     = "10.0.0.0/16"
+}
+
+resource "aws_network_acl_rule" "private_out" {
+  network_acl_id = aws_network_acl.private.id
+  rule_number    = 100
+  egress         = true
+  protocol       = "-1"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+}
+
+resource "aws_subnet_network_acl_association" "private_a" {
+  subnet_id      = aws_subnet.private_a.id
+  network_acl_id = aws_network_acl.private.id
+}
+
+resource "aws_subnet_network_acl_association" "private_b" {
+  subnet_id      = aws_subnet.private_b.id
+  network_acl_id = aws_network_acl.private.id
+}
+
+resource "aws_security_group" "eks" {
+  name   = "eks-sg"
+  vpc_id = aws_vpc.this.id
+
+  ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = [aws_vpc.this.cidr_block]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_networkfirewall_firewall_policy" "this" {
+  name = "eks-firewall-policy"
+  firewall_policy {
+    stateless_default_actions          = ["aws:forward_to_sfe"]
+    stateless_fragment_default_actions = ["aws:forward_to_sfe"]
+  }
+}
+
+resource "aws_networkfirewall_firewall" "this" {
+  name              = "eks-firewall"
+  firewall_policy_arn = aws_networkfirewall_firewall_policy.this.arn
+  vpc_id            = aws_vpc.this.id
+  subnet_mapping {
+    subnet_id = aws_subnet.public_a.id
+  }
+  subnet_mapping {
+    subnet_id = aws_subnet.public_b.id
   }
 }
 
@@ -95,14 +270,15 @@ resource "aws_eks_cluster" "this" {
   role_arn = aws_iam_role.eks.arn
 
   vpc_config {
-    subnet_ids = data.aws_subnets.public.ids
+    subnet_ids       = [aws_subnet.private_a.id, aws_subnet.private_b.id]
+    security_group_ids = [aws_security_group.eks.id]
   }
 }
 
 resource "aws_eks_node_group" "default" {
   cluster_name  = aws_eks_cluster.this.name
   node_role_arn = aws_iam_role.node.arn
-  subnet_ids    = data.aws_subnets.public.ids
+  subnet_ids    = [aws_subnet.private_a.id, aws_subnet.private_b.id]
 
   scaling_config {
     desired_size = 1
