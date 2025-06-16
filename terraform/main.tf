@@ -196,9 +196,9 @@ resource "aws_networkfirewall_firewall_policy" "this" {
 }
 
 resource "aws_networkfirewall_firewall" "this" {
-  name              = "eks-firewall"
+  name                = "eks-firewall"
   firewall_policy_arn = aws_networkfirewall_firewall_policy.this.arn
-  vpc_id            = aws_vpc.this.id
+  vpc_id              = aws_vpc.this.id
   subnet_mapping {
     subnet_id = aws_subnet.public_a.id
   }
@@ -270,7 +270,7 @@ resource "aws_eks_cluster" "this" {
   role_arn = aws_iam_role.eks.arn
 
   vpc_config {
-    subnet_ids       = [aws_subnet.private_a.id, aws_subnet.private_b.id]
+    subnet_ids         = [aws_subnet.private_a.id, aws_subnet.private_b.id]
     security_group_ids = [aws_security_group.eks.id]
   }
 }
