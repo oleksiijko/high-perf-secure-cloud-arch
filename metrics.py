@@ -1,45 +1,77 @@
-try:
-    import pandas as pd
-except ModuleNotFoundError:
-    print("pandas not installed, skipping metrics aggregation")
-    raise SystemExit(0)
+#!/usr/bin/env python3
+"""Aggregate JMeter results and gate builds on performance."""
 
-import matplotlib.pyplot as plt
+import argparse
+import os
+import sys
 from pathlib import Path
 
-baseline_throughput = 200  # requests per second
-baseline_latency = 345      # milliseconds
+import numpy as np
+import pandas as pd
 
 
-def main():
-    df = pd.read_csv('logs/sample_run.csv', parse_dates=['timestamp'])
-    df['second'] = df['timestamp'].dt.floor('S')
-
-    latency = df.groupby('second')['rt_ms'].mean()
-    throughput = df.groupby('second').size()
-
-    avg_latency = latency.mean()
-    avg_throughput = throughput.mean()
-
-    throughput_gain = 100 * (avg_throughput - baseline_throughput) / baseline_throughput
-    latency_drop = 100 * (baseline_latency - avg_latency) / baseline_latency
-
-    print(f'Throughput gain: {throughput_gain:.1f}%')
-    print(f'Latency drop: {latency_drop:.1f}%')
-
-    fig, axes = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
-    latency.plot(ax=axes[0], title='Latency (ms)')
-    axes[0].set_ylabel('ms')
-    throughput.plot(ax=axes[1], title='Throughput (RPS)')
-    axes[1].set_ylabel('req/s')
-    fig.tight_layout()
-
-    Path('reports').mkdir(exist_ok=True)
-    report_path = Path('reports/metrics_report.pdf')
-    fig.savefig(report_path)
-
-    print(f'Report saved to {report_path}')
+def parse_jtl(path: Path) -> tuple[float, float, float, float]:
+    """Return throughput and latency percentiles for a JTL file."""
+    df = pd.read_csv(path)
+    if 'success' in df.columns:
+        df = df[df['success'] == True]
+    start = df['timeStamp'].min()
+    end = df['timeStamp'].max()
+    duration = (end - start) / 1000.0
+    throughput = len(df) / duration if duration else 0.0
+    lat_col = 'Latency' if 'Latency' in df.columns else 'elapsed'
+    lat = pd.to_numeric(df[lat_col], errors='coerce').dropna()
+    p50 = float(np.percentile(lat, 50)) if not lat.empty else 0.0
+    p95 = float(np.percentile(lat, 95)) if not lat.empty else 0.0
+    p99 = float(np.percentile(lat, 99)) if not lat.empty else 0.0
+    return throughput, p50, p95, p99
 
 
-if __name__ == '__main__':
-    main()
+def main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(description="Aggregate JMeter results")
+    parser.add_argument("results", help="Directory with result JTL files")
+    args = parser.parse_args(argv)
+
+    base = Path(args.results)
+    profiles = ["light", "medium", "heavy"]
+    iterations = range(1, 4)
+    metrics: dict[str, dict[str, list[float]]] = {
+        p: {"throughput": [], "p50": [], "p95": [], "p99": []} for p in profiles
+    }
+
+    for prof in profiles:
+        for i in iterations:
+            f = base / f"{prof}-{i}.jtl"
+            if not f.exists():
+                print(f"missing {f}", file=sys.stderr)
+                continue
+            tp, p50, p95, p99 = parse_jtl(f)
+            metrics[prof]["throughput"].append(tp)
+            metrics[prof]["p50"].append(p50)
+            metrics[prof]["p95"].append(p95)
+            metrics[prof]["p99"].append(p99)
+
+    tp_threshold = float(os.getenv("THROUGHPUT_THRESHOLD", "0"))
+    lat_threshold = float(os.getenv("LATENCY_THRESHOLD", "1e9"))
+    rows: list[tuple[str, str, float, float]] = []
+    fail = False
+
+    for prof, data in metrics.items():
+        for metric, vals in data.items():
+            mean = float(np.mean(vals)) if vals else 0.0
+            std = float(np.std(vals, ddof=1)) if len(vals) > 1 else 0.0
+            rows.append((prof, metric, mean, std))
+        if data["throughput"] and np.mean(data["throughput"]) < tp_threshold:
+            fail = True
+        if data["p95"] and np.mean(data["p95"]) > lat_threshold:
+            fail = True
+
+    print("Profile,Metric,Mean,StdDev")
+    for prof, metric, mean, std in rows:
+        print(f"{prof},{metric},{mean:.2f},{std:.2f}")
+
+    return 1 if fail else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))
