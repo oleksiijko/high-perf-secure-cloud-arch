@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ids-agent
+  namespace: microservices
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ids-agent
+  template:
+    metadata:
+      labels:
+        app: ids-agent
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: ids-agent
+          image: ids-agent:latest
+          env:
+            - name: SIEM_URL
+              value: http://siem.local/ingest
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ids-agent
+  namespace: microservices
+spec:
+  selector:
+    app: ids-agent
+  ports:
+    - port: 80
+      targetPort: 3000
