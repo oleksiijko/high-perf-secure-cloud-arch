@@ -24,6 +24,22 @@ logger.info(
 
 app.use(express.json());
 
+// request logging
+app.use((req, res, next) => {
+  const start = process.hrtime.bigint();
+  res.on('finish', () => {
+    const duration = Number(process.hrtime.bigint() - start) / 1e6;
+    logger.info(
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        endpoint: req.originalUrl,
+        duration_ms: Math.round(duration),
+      })
+    );
+  });
+  next();
+});
+
 // simple IDS check
 app.use((req, res, next) => {
   const suspicious = /'\s*OR\s*1=1/i;
@@ -62,7 +78,16 @@ app.use((req, res, next) => {
 });
 
 const ALGO = 'aes-256-gcm';
-const KEY = crypto.randomBytes(32);
+let KEY;
+try {
+  if (!process.env.CRYPTO_KEY) throw new Error('CRYPTO_KEY not set');
+  const keyBuf = Buffer.from(process.env.CRYPTO_KEY, 'base64');
+  if (keyBuf.length !== 32) throw new Error('Key must be 32 bytes');
+  KEY = keyBuf;
+} catch (err) {
+  logger.error(`Invalid crypto key: ${err.message}`);
+  KEY = crypto.randomBytes(32);
+}
 
 app.get('/health', (req, res) => res.send('healthy'));
 
