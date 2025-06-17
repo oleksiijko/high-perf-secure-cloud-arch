@@ -67,6 +67,7 @@ jobs:
             curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.20.1 sh -
             ISTIO_DIR=$(ls -d istio-*)
             echo "$ISTIO_DIR/bin" >> "$GITHUB_PATH"
+            export PATH="$PATH:$ISTIO_DIR/bin"
             istioctl install -y --set profile=minimal
           fi
 
