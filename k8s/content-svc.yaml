@@ -26,7 +26,7 @@ spec:
             - name: CERT_DIR
               value: /certs
             - name: LOG_DIR
-              value: /tmp
+              value: /app/logs
           resources:
             requests:
               cpu: "100m"
@@ -37,6 +37,8 @@ spec:
           volumeMounts:
             - name: tls
               mountPath: /certs
+            - name: logs
+              mountPath: /app/logs
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
@@ -50,6 +52,8 @@ spec:
         - name: tls
           secret:
             secretName: tls-secret
+        - name: logs
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
