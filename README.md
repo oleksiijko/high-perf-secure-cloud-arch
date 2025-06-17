@@ -92,6 +92,10 @@ kubectl apply -f k8s/
 kubectl apply -f k8s/istio/
 ```
 
+### Troubleshooting
+For debugging failed deployments in the `kind` cluster see [docs/k8s-debugging.md](docs/k8s-debugging.md).
+
+
 ## Logs
 Sample run data lives in `logs/sample_run.csv` for reference. Running
 `python metrics.py` generates `reports/metrics_report.pdf`.

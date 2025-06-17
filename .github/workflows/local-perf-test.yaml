@@ -71,17 +71,38 @@ jobs:
             istioctl install -y --set profile=minimal
           fi
 
+      - name: Show manifest directory structure
+        shell: bash
+        run: |
+          find k8s -maxdepth 2 -type f -name '*.yaml' | sort
+
       - name: Apply Kubernetes manifests
         shell: bash
         run: |
-          # Ensure namespace exists before applying other resources
+          set -euo pipefail
           kubectl apply -f k8s/namespace.yaml
-          # Apply all manifests except the deprecated PodSecurityPolicy
+          failed=0
+          apply_file() {
+            local file="$1"
+            echo "Applying $file"
+            if kubectl apply -f "$file"; then
+              kubectl get all -n microservices
+            else
+              echo "::error::Failed to apply $file"
+              failed=1
+            fi
+          }
           for f in $(find k8s -name '*.yaml' ! -name 'namespace.yaml' ! -name 'podsecuritypolicy.yaml' | sort); do
-            kubectl apply -f "$f"
+            apply_file "$f"
           done
           if [ -d "k8s/istio" ]; then
-            kubectl apply -f k8s/istio/
+            for f in $(find k8s/istio -name '*.yaml' | sort); do
+              apply_file "$f"
+            done
+          fi
+          if [ $failed -ne 0 ]; then
+            echo "::error::One or more manifests failed to apply"
+            exit 1
           fi
 
       - name: Wait for all pods
@@ -89,6 +110,18 @@ jobs:
         run: |
           # Wait only for deployments in the microservices namespace
           kubectl wait --for=condition=available deployment --all -n microservices --timeout=600s || true
+
+      - name: Verify deployments exist
+        shell: bash
+        run: |
+          set -e
+          expected="account-svc analytics-svc auth-svc content-svc crypto-svc ids-agent"
+          for d in $expected; do
+            if ! kubectl get deployment "$d" -n microservices > /dev/null 2>&1; then
+              echo "::error::Deployment $d not found"
+              exit 1
+            fi
+          done
 
       - name: List all pods
         shell: bash
