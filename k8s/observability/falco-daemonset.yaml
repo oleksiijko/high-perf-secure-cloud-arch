@@ -29,7 +29,13 @@ spec:
       - name: falco
         image: falcosecurity/falco:latest
         securityContext:
-          privileged: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - name: dev-fs
           mountPath: /host/dev
