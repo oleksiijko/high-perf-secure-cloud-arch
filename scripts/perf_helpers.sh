@@ -13,7 +13,8 @@ prepare_results() {
 
 # Wait until all Kubernetes deployments are available
 wait_for_pods() {
-  kubectl wait --for=condition=available --timeout=300s deployment --all
+  local ns=${1:-microservices}
+  kubectl wait --for=condition=available --timeout=300s deployment --all -n "$ns"
 }
 
 # Flush Redis cache inside the cluster

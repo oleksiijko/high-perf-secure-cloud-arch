@@ -87,7 +87,8 @@ jobs:
       - name: Wait for all pods
         shell: bash
         run: |
-          kubectl wait --for=condition=available deployment --all -A --timeout=600s || true
+          # Wait only for deployments in the microservices namespace
+          kubectl wait --for=condition=available deployment --all -n microservices --timeout=600s || true
 
       - name: List all pods
         shell: bash
