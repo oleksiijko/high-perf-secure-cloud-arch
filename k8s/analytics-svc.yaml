@@ -54,6 +54,13 @@ spec:
         - name: tls
           secret:
             secretName: tls-secret
+              items:
+                - key: tls.crt
+                  path: server.crt
+                - key: tls.crt
+                  path: ca.crt
+                - key: tls.key
+                  path: server.key
         - name: logs
           emptyDir: {}
 ---
