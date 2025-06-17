@@ -74,7 +74,12 @@ jobs:
       - name: Apply Kubernetes manifests
         shell: bash
         run: |
-          kubectl apply -f k8s/ --recursive
+          # Ensure namespace exists before applying other resources
+          kubectl apply -f k8s/namespace.yaml
+          # Apply all manifests except the deprecated PodSecurityPolicy
+          for f in $(find k8s -name '*.yaml' ! -name 'namespace.yaml' ! -name 'podsecuritypolicy.yaml' | sort); do
+            kubectl apply -f "$f"
+          done
           if [ -d "k8s/istio" ]; then
             kubectl apply -f k8s/istio/
           fi
