@@ -18,7 +18,7 @@ spec:
         runAsNonRoot: true
       containers:
         - name: crypto-svc
-          image: ghcr.io/example/crypto-svc:1.0
+          image: ghcr.io/oleksiijko/crypto-svc:1.0
           ports:
             - containerPort: 3000
           env:

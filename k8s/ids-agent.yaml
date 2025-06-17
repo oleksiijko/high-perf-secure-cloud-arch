@@ -17,7 +17,7 @@ spec:
         runAsNonRoot: true
       containers:
         - name: ids-agent
-          image: ghcr.io/example/ids-agent:1.0
+          image: ghcr.io/oleksiijko/ids-agent:1.0
           env:
             - name: SIEM_URL
               value: http://siem.local/ingest
