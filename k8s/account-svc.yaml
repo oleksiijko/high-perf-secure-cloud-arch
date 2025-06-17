@@ -19,7 +19,7 @@ spec:
       containers:
         - name: account-svc
           image: account-svc:latest
-          imagePullPolicy: Never
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
           env:
@@ -37,10 +37,12 @@ spec:
           volumeMounts:
             - name: tls
               mountPath: /certs
+            - name: tmp-storage
+              mountPath: /tmp
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
-            readOnlyRootFilesystem: true
+            readOnlyRootFilesystem: false
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
@@ -50,6 +52,8 @@ spec:
         - name: tls
           secret:
             secretName: tls-secret
+        - name: tmp-storage
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
