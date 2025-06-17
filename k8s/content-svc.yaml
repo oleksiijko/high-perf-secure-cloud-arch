@@ -19,6 +19,7 @@ spec:
       containers:
         - name: content-svc
           image: content-svc:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 3000
           env:
