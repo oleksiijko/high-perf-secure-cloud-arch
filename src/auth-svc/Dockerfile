@@ -2,8 +2,8 @@ FROM node:18-alpine
 WORKDIR /app
 
 RUN mkdir -p /certs
-COPY src/auth-svc/certs/server.key /certs/server.key
-COPY src/auth-svc/certs/server.crt /certs/server.crt
+COPY certs/server.key /certs/server.key
+COPY certs/server.crt /certs/server.crt
 
 COPY package.json package-lock.json* ./
 RUN npm install --production && \
