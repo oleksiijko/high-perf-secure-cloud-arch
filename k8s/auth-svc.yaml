@@ -18,7 +18,7 @@ spec:
         runAsNonRoot: true
       containers:
         - name: auth-svc
-          image: ghcr.io/oleksiijko/auth-svc:1.0
+          image: auth-svc:latest
           ports:
             - containerPort: 3000
           env:

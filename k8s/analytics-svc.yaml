@@ -18,7 +18,7 @@ spec:
         runAsNonRoot: true
       containers:
         - name: analytics-svc
-          image: ghcr.io/oleksiijko/analytics-svc:1.0
+          image: analytics-svc:latest
           ports:
             - containerPort: 3000
           env:
