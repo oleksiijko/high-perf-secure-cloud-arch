@@ -18,7 +18,7 @@ spec:
         runAsNonRoot: true
       containers:
         - name: account-svc
-          image: ghcr.io/oleksiijko/account-svc:1.0
+          image: account-svc:latest
           ports:
             - containerPort: 3000
           env:

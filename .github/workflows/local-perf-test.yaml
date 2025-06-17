@@ -53,11 +53,28 @@ jobs:
         with:
           version: v1.28.0
 
+
       - name: Set up kind cluster with 3 nodes
         uses: engineerd/setup-kind@v0.5.0
         with:
           version: v0.20.0
           config: kind-config.yaml
+
+      - name: Build Docker images
+        shell: bash
+        run: |
+          set -e
+          for svc in account-svc analytics-svc auth-svc content-svc crypto-svc ids-agent; do
+            docker build -t "$svc:latest" "./src/$svc"
+          done
+
+      - name: Load images into kind
+        shell: bash
+        run: |
+          set -e
+          for svc in account-svc analytics-svc auth-svc content-svc crypto-svc ids-agent; do
+            kind load docker-image "$svc:latest"
+          done
 
       - name: Install Istio (optional)
         if: runner.os != 'Windows'
