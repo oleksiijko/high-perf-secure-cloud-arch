@@ -2,9 +2,7 @@ FROM node:18-alpine
 WORKDIR /app
 
 RUN mkdir -p /certs
-
-COPY server.key /certs/server.key
-COPY server.crt /certs/server.crt
+COPY server.key server.crt /certs/
 
 COPY package.json package-lock.json* ./
 RUN npm install --production && \
