@@ -24,39 +24,39 @@ spec:
     metadata:
       labels:
         app: falco
-      spec:
-        hostPID: true
-        containers:
-        - name: falco
-          image: falcosecurity/falco:latest
-          securityContext:
-            privileged: true
-            runAsNonRoot: true
-            runAsUser: 1000
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
-            seccompProfile:
-              type: RuntimeDefault
-          volumeMounts:
-          - name: dev-fs
-            mountPath: /host/dev
-          - name: proc-fs
-            mountPath: /host/proc
-          - name: sys-fs
-            mountPath: /host/sys
-          - name: rules
-            mountPath: /etc/falco/rules.d
-        volumes:
+    spec:
+      hostPID: true
+      containers:
+      - name: falco
+        image: falcosecurity/falco:latest
+        securityContext:
+          privileged: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
         - name: dev-fs
-          hostPath:
-            path: /dev
+          mountPath: /host/dev
         - name: proc-fs
-          hostPath:
-            path: /proc
+          mountPath: /host/proc
         - name: sys-fs
-          hostPath:
-            path: /sys
+          mountPath: /host/sys
         - name: rules
-          configMap:
-            name: falco-node-rules
+          mountPath: /etc/falco/rules.d
+      volumes:
+      - name: dev-fs
+        hostPath:
+          path: /dev
+      - name: proc-fs
+        hostPath:
+          path: /proc
+      - name: sys-fs
+        hostPath:
+          path: /sys
+      - name: rules
+        configMap:
+          name: falco-node-rules
