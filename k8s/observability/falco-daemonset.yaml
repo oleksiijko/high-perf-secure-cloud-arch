@@ -31,10 +31,8 @@ spec:
         image: falcosecurity/falco:latest
         securityContext:
           privileged: true
-          runAsNonRoot: true
-          runAsUser: 1000
-          allowPrivilegeEscalation: true
           capabilities:
+            add: ["SYS_ADMIN"]
             drop: ["ALL"]
           seccompProfile:
             type: RuntimeDefault
