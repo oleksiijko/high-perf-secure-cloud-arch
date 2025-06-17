@@ -1,6 +1,7 @@
 FROM node:18-alpine
 WORKDIR /app
 COPY package.json package-lock.json ./
+COPY cert.pem key.pem ./
 RUN npm ci --omit=dev && \
     mkdir -p /app/logs && \
     chown node:node /app/logs
