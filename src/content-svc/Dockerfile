@@ -2,8 +2,9 @@ FROM node:18-alpine
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && \
-    mkdir -p /logs && \
-    chown node:node /logs
+    mkdir -p /app/logs && \
+    chown node:node /app/logs
+ENV LOG_DIR=/app/logs
 COPY server.js .
 # run as unprivileged user and rely on Node's OpenSSL build
 # to leverage AES-NI when available

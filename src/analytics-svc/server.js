@@ -7,7 +7,7 @@ const logger = require('winston');
 const Redis = require('ioredis');
 const app = express();
 
-const logDir = process.env.LOG_DIR || path.join(__dirname, '../../logs');
+const logDir = process.env.LOG_DIR || '/app/logs';
 const logFile = path.join(logDir, 'sample_run.csv');
 if (!fs.existsSync(logFile)) {
   fs.mkdirSync(path.dirname(logFile), { recursive: true });

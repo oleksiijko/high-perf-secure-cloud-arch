@@ -22,6 +22,9 @@ spec:
           env:
             - name: SIEM_URL
               value: http://siem.local/ingest
+          volumeMounts:
+            - name: logs
+              mountPath: /app/logs
           resources:
             requests:
               cpu: "50m"
@@ -38,6 +41,9 @@ spec:
               drop: ["ALL"]
             seccompProfile:
               type: RuntimeDefault
+      volumes:
+        - name: logs
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
