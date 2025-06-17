@@ -18,7 +18,7 @@ spec:
       containers:
         - name: ids-agent
           image: ids-agent:latest
-          imagePullPolicy: Never
+          imagePullPolicy: IfNotPresent
           env:
             - name: SIEM_URL
               value: http://siem.local/ingest
