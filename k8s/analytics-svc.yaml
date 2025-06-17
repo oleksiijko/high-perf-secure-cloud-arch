@@ -27,6 +27,8 @@ spec:
               value: /certs
             - name: REDIS_URL
               value: redis://redis:6379
+            - name: LOG_DIR
+              value: /tmp
           resources:
             requests:
               cpu: "100m"
