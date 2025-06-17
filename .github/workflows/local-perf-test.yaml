@@ -99,6 +99,7 @@ jobs:
         run: |
           set -euo pipefail
           kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/secrets.yaml -n microservices
           failed=0
           apply_file() {
             local file="$1"
@@ -110,7 +111,7 @@ jobs:
               failed=1
             fi
           }
-          for f in $(find k8s -name '*.yaml' ! -name 'namespace.yaml' ! -name 'podsecuritypolicy.yaml' | sort); do
+          for f in $(find k8s -name '*.yaml' ! -name 'namespace.yaml' ! -name 'secrets.yaml' ! -name 'podsecuritypolicy.yaml' | sort); do
             apply_file "$f"
           done
           if [ -d "k8s/istio" ]; then
@@ -122,6 +123,7 @@ jobs:
             echo "::error::One or more manifests failed to apply"
             exit 1
           fi
+          kubectl rollout restart deployment -n microservices
 
       - name: Wait for all pods
         shell: bash
