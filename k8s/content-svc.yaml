@@ -25,6 +25,8 @@ spec:
           env:
             - name: CERT_DIR
               value: /certs
+            - name: LOG_DIR
+              value: /tmp
           resources:
             requests:
               cpu: "100m"

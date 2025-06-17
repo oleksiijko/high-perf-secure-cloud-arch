@@ -6,7 +6,8 @@ const jwt = require('jsonwebtoken');
 const logger = require('winston');
 const app = express();
 
-const logFile = path.join(__dirname, '../../logs/sample_run.csv');
+const logDir = process.env.LOG_DIR || path.join(__dirname, '../../logs');
+const logFile = path.join(logDir, 'sample_run.csv');
 if (!fs.existsSync(logFile)) {
   fs.mkdirSync(path.dirname(logFile), { recursive: true });
   fs.writeFileSync(logFile, 'timestamp,url,rt_ms,http_code\n');
