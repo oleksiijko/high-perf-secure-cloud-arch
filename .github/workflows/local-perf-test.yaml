@@ -45,6 +45,7 @@ jobs:
     env:
       THROUGHPUT_THRESHOLD: ${{ github.event.inputs.throughput_threshold || '0' }}
       LATENCY_THRESHOLD: ${{ github.event.inputs.latency_threshold || '1000000000' }}
+      CLUSTER_NAME: kind
     steps:
       - uses: actions/checkout@v4
 
@@ -73,7 +74,7 @@ jobs:
         run: |
           set -e
           for svc in account-svc analytics-svc auth-svc content-svc crypto-svc ids-agent; do
-            kind load docker-image "$svc:latest"
+              kind load docker-image "$svc:latest" --name "$CLUSTER_NAME"
           done
 
       - name: Install Istio (optional)
@@ -174,7 +175,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          BAD=$(kubectl get pods -A --no-headers | awk '$4 ~ /(CrashLoopBackOff|ImagePullBackOff|Error|Pending|Failed)/{print $1" "$2" "$4}')
+          BAD=$(kubectl get pods -A --no-headers | awk '$4 ~ /(CrashLoopBackOff|ImagePullBackOff|ErrImagePull|Error|Pending|Failed)/{print $1" "$2" "$4}')
           if [ -n "$BAD" ]; then
             echo "::error::Pods in problematic state:" && echo "$BAD"
             NS=$(echo "$BAD" | head -n1 | awk '{print $1}')
@@ -188,7 +189,7 @@ jobs:
         shell: powershell
         run: |
           $pods = kubectl get pods -A --no-headers
-          $bad = $pods | Where-Object { $_ -match 'CrashLoopBackOff|ImagePullBackOff|Error|Pending|Failed' }
+          $bad = $pods | Where-Object { $_ -match 'CrashLoopBackOff|ImagePullBackOff|ErrImagePull|Error|Pending|Failed' }
           if ($bad) {
             Write-Host 'Pods in problematic state:'
             $bad

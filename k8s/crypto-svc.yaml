@@ -19,6 +19,7 @@ spec:
       containers:
         - name: crypto-svc
           image: crypto-svc:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 3000
           env:

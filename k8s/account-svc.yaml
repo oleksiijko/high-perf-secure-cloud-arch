@@ -19,6 +19,7 @@ spec:
       containers:
         - name: account-svc
           image: account-svc:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 3000
           env:
