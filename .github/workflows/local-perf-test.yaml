@@ -87,7 +87,67 @@ jobs:
       - name: Wait for all pods
         shell: bash
         run: |
-          kubectl wait --for=condition=available deployment --all -A --timeout=600s
+          kubectl wait --for=condition=available deployment --all -A --timeout=600s || true
+
+      - name: List all pods
+        shell: bash
+        run: kubectl get pods -A -o wide
+
+      - name: Describe non-running pods (bash)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          kubectl get pods -A --field-selector=status.phase!=Running,status.phase!=Succeeded -o name \
+            | tail -n 20 | xargs -r kubectl describe
+
+      - name: Describe non-running pods (PowerShell)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $pods = kubectl get pods -A --field-selector=status.phase!=Running,status.phase!=Succeeded -o name
+          $selected = $pods | Select-Object -Last 20
+          if ($selected) { $selected | ForEach-Object { kubectl describe $_ } }
+
+      - name: Show recent events (bash)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: kubectl get events -A --sort-by=.metadata.creationTimestamp | tail -n 50
+
+      - name: Show recent events (PowerShell)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: kubectl get events -A --sort-by=.metadata.creationTimestamp | Select-Object -Last 50
+
+      - name: Ensure pods are healthy (bash)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -e
+          BAD=$(kubectl get pods -A --no-headers | awk '$4 ~ /(CrashLoopBackOff|ImagePullBackOff|Error|Pending|Failed)/{print $1" "$2" "$4}')
+          if [ -n "$BAD" ]; then
+            echo "::error::Pods in problematic state:" && echo "$BAD"
+            NS=$(echo "$BAD" | head -n1 | awk '{print $1}')
+            POD=$(echo "$BAD" | head -n1 | awk '{print $2}')
+            echo "Logs from $NS/$POD:" && kubectl logs -n "$NS" "$POD" --tail=20 || true
+            exit 1
+          fi
+
+      - name: Ensure pods are healthy (PowerShell)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $pods = kubectl get pods -A --no-headers
+          $bad = $pods | Where-Object { $_ -match 'CrashLoopBackOff|ImagePullBackOff|Error|Pending|Failed' }
+          if ($bad) {
+            Write-Host 'Pods in problematic state:'
+            $bad
+            $first = $bad[0] -split '\s+'
+            $ns = $first[0]
+            $pod = $first[1]
+            Write-Host "Logs from $ns/$pod:"
+            kubectl logs -n $ns $pod --tail=20 | Out-Host
+            exit 1
+          }
 
       - name: Install JMeter on Linux
         if: runner.os == 'Linux'
