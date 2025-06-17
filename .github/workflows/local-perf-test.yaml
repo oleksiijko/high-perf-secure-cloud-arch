@@ -150,7 +150,7 @@ jobs:
         shell: bash
         run: |
           kubectl get pods -A --field-selector=status.phase!=Running,status.phase!=Succeeded -o name \
-            | tail -n 20 | xargs -r kubectl describe
+            | tail -n 20 | xargs -r -n1 kubectl describe || true
 
       - name: Describe non-running pods (PowerShell)
         if: runner.os == 'Windows'
