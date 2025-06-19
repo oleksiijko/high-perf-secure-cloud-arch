@@ -40,6 +40,7 @@ spec:
           volumeMounts:
             - name: tls
               mountPath: /certs
+              readOnly: true 
             - name: logs
               mountPath: /app/logs
           securityContext:
@@ -55,6 +56,11 @@ spec:
         - name: tls
           secret:
             secretName: tls-secret
+            items: 
+              - key: tls.key
+                path: server.key  
+              - key: tls.crt
+                path: server.crt
         - name: logs
           emptyDir: {}
 ---
