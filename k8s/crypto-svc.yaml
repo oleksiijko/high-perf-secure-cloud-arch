@@ -63,6 +63,8 @@ spec:
                 path: server.crt
               - key: ca.crt
                 path: ca.crt
+              - key: ca.key
+                path: ca.key
         - name: logs
           emptyDir: {}
 ---
