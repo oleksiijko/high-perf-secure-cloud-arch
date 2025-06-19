@@ -61,6 +61,8 @@ spec:
                 path: server.key  
               - key: tls.crt
                 path: server.crt
+              - key: ca.crt
+                path: ca.crt
         - name: logs
           emptyDir: {}
 ---
