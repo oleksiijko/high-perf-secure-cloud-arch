@@ -1,0 +1,57 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: microservices
+  namespace: microservices          # тот же ns, что и у ваших сервисов
+spec:
+  gateways:
+    - istio-system/microservices-gw # имя из gateway.yaml
+  hosts:
+    - '*'                           # для локального кластера хватит «звёздочки»
+  http:
+    # -- «health / profile» -------------------------
+    - match:
+        - uri:
+            prefix: /api/profile
+      route:
+        - destination:
+            host: account-svc      # кто реально отвечает за /api/profile
+            port:
+              number: 80
+
+    # -- остальные пути -----------------------------
+    - match:
+        - uri:
+            prefix: /api/account
+      route:
+        - destination:
+            host: account-svc
+            port:
+              number: 80
+
+    - match:
+        - uri:
+            prefix: /api/auth
+      route:
+        - destination:
+            host: auth-svc
+            port:
+              number: 80
+
+    - match:
+        - uri:
+            prefix: /api/content
+      route:
+        - destination:
+            host: content-svc
+            port:
+              number: 80
+
+    - match:
+        - uri:
+            prefix: /api/analytics
+      route:
+        - destination:
+            host: analytics-svc
+            port:
+              number: 80
