@@ -101,12 +101,12 @@ jobs:
             istioctl install -y --set profile=demo
           fi
 
-      - name: Port-forward Istio Ingress
-        shell: bash
-        run: |
-          kubectl -n istio-system wait --for=condition=ready pod -l app=istio-ingressgateway --timeout=120s
-          kubectl -n istio-system port-forward svc/istio-ingressgateway 8080:80 &
-          echo "::notice::ingress port-forward PID $!"
+      # - name: Port-forward Istio Ingress
+      #   shell: bash
+      #   run: |
+      #     kubectl -n istio-system wait --for=condition=ready pod -l app=istio-ingressgateway --timeout=120s
+      #     kubectl -n istio-system port-forward svc/istio-ingressgateway 8080:80 &
+      #     echo "::notice::ingress port-forward PID $!"
 
       - name: Show manifest directory structure
         shell: bash
@@ -211,20 +211,20 @@ jobs:
       #       exit 1
       #     fi
 
-      - name: Wait until ingress answers on 8080
-        shell: bash
-        run: |
-          set -e
-          echo "⏳ Probing http://localhost:8080/actuator/health …"
-          for i in {1..30}; do
-            if curl -s http://localhost:8080/ -o /dev/null; then 
-              echo "✔ ingress is up"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "::error::Ingress did not respond on localhost:8080"
-          exit 1
+      # - name: Wait until ingress answers on 8080
+      #   shell: bash
+      #   run: |
+      #     set -e
+      #     echo "⏳ Probing http://localhost:8080/actuator/health …"
+      #     for i in {1..30}; do
+      #       if curl -s http://localhost:8080/ -o /dev/null; then 
+      #         echo "✔ ingress is up"
+      #         exit 0
+      #       fi
+      #       sleep 2
+      #     done
+      #     echo "::error::Ingress did not respond on localhost:8080"
+      #     exit 1
 
       - name: Ensure pods are healthy (bash)
         if: runner.os != 'Windows'
@@ -285,17 +285,28 @@ jobs:
         shell: powershell
         run: choco install jmeter -y
 
-      - name: Run JMeter test plan
+      - name: Run JMeter (with port-forward)
         shell: bash
         run: |
+          set -e
+          kubectl -n istio-system port-forward svc/istio-ingressgateway 8080:80 >/dev/null 2>&1 &
+          PF_PID=$!
+          trap 'kill $PF_PID' EXIT
+
+          # ждём, пока порт начнёт отвечать
+          for i in {1..30}; do
+            if curl -s http://localhost:8080/ -o /dev/null; then break; fi
+            sleep 1
+          done
+
           mkdir results
           for p in light medium heavy; do
             for i in 1 2 3; do
-              jmeter -n -Jxstream.safemode=false -q jmeter/user.properties \
-                     -q jmeter/profiles/${p}.properties \
-                     -t jmeter/microservices-test-plan.jmx \
-                     -l results/${p}-${i}.jtl \
-                     -j results/${p}-${i}.log
+              jmeter -n -q jmeter/user.properties \
+                    -q jmeter/profiles/${p}.properties \
+                    -t jmeter/microservices-test-plan.jmx \
+                    -l results/${p}-${i}.jtl \
+                    -j results/${p}-${i}.log
             done
           done
 
