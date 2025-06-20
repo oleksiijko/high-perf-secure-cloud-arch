@@ -60,6 +60,18 @@ jobs:
         with:
           version: v0.20.0
           config: kind-config.yaml
+          
+      - name: Install metrics-server in kind
+        shell: bash
+        run: |
+          set -e
+          kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+          kubectl -n kube-system patch deployment metrics-server \
+            --type=json \
+            -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"},{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-preferred-address-types=InternalIP,Hostname,ExternalIP"}]'
+
+          kubectl -n kube-system rollout status deployment/metrics-server --timeout=60s
 
       - name: Build Docker images
         shell: bash
@@ -232,7 +244,7 @@ jobs:
             for i in 1 2 3; do
               jmeter -n -Jxstream.safemode=false \ 
                      -t jmeter/microservices-test-plan.jmx \
-                     -p jmeter/profiles/${p}.properties \
+                     -q jmeter/profiles/${p}.properties \
                      -l results/${p}-${i}.jtl
             done
           done
