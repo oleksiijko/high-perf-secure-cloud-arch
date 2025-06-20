@@ -113,11 +113,6 @@ jobs:
         run: |
           find k8s -maxdepth 2 -type f -name '*.yaml' | sort
 
-      - name: Enable Istio sidecar injection
-        shell: bash
-        run: |
-          kubectl label namespace microservices istio-injection=enabled --overwrite
-
       - name: Apply Kubernetes manifests
         shell: bash
         run: |
@@ -147,7 +142,15 @@ jobs:
             echo "::error::One or more manifests failed to apply"
             exit 1
           fi
-          kubectl rollout restart deployment -n microservices
+
+      - name: Enable Istio sidecar injection
+        shell: bash
+        run: |
+          kubectl label namespace microservices istio-injection=enabled --overwrite
+
+      - name: Restart pods with sidecar
+        shell: bash
+        run: kubectl rollout restart deployment -n microservices
 
       - name: Wait for all pods
         shell: bash
@@ -256,36 +259,40 @@ jobs:
         shell: powershell
         run: choco install jmeter -y
 
-      - name: Wait until ingress returns 200
+      # - name: Wait until ingress returns 200
+      #   shell: bash
+      #   run: |
+      #     kubectl -n istio-system port-forward svc/istio-ingressgateway 8080:80 >/dev/null 2>&1 &
+      #     PF_PID=$!
+      #     trap 'kill $PF_PID' EXIT
+      #     for i in {1..60}; do
+      #       if curl -fs http://localhost:8080/api/profile -o /dev/null; then
+      #         echo "Ingress ready"; exit 0
+      #       fi
+      #       sleep 2
+      #     done
+      #     echo "::error::Ingress still returns error after 120 s"; exit 1
+
+      - name: Port-forward Ingress & wait for 200
         shell: bash
         run: |
           kubectl -n istio-system port-forward svc/istio-ingressgateway 8080:80 >/dev/null 2>&1 &
-          PF_PID=$!
-          trap 'kill $PF_PID' EXIT
+          echo "PF_PID=$!" >> $GITHUB_ENV          # сохраним PID
           for i in {1..60}; do
-            if curl -fs http://localhost:8080/api/profile -o /dev/null; then
-              echo "Ingress ready"; exit 0
-            fi
+            curl -fs http://localhost:8080/api/profile -o /dev/null && break
             sleep 2
-          done
-          echo "::error::Ingress still returns error after 120 s"; exit 1
+          done || { echo "::error::Ingress not ready"; exit 1; }
 
-      - name: Run JMeter (with port-forward)
+      - name: Run JMeter
         shell: bash
         run: |
           set -e
-          kubectl -n istio-system port-forward svc/istio-ingressgateway 8080:80 >/dev/null 2>&1 &
-          PF_PID=$!
           trap 'kill $PF_PID' EXIT
 
-          # ждём, пока порт начнёт отвечать
+          # ждём, пока порт отвечает (обычно <2 с)
           for i in {1..30}; do
-            if curl -s http://localhost:8080/ -o /dev/null; then break; fi
+            curl -s http://localhost:8080/ -o /dev/null && break
             sleep 1
-          done
-
-          for p in profile content analytics; do
-            curl -fsS "http://localhost:8080/api/$p" -o /dev/null && echo "/api/$p OK"
           done
 
           mkdir results
@@ -299,6 +306,7 @@ jobs:
             done
           done
 
+
       - name: Generate JMeter HTML dashboards
         shell: bash
         run: |
@@ -307,20 +315,6 @@ jobs:
             dir="reports/$(basename "$f" .jtl)"
             jmeter -g "$f" -o "$dir"
           done
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: jmeter-html
-          path: reports/
-
-      - name: Generate JMeter dashboards
-        shell: bash
-        run: |
-          mkdir -p reports
-          for f in results/*.jtl; do
-            jmeter -g "$f" -o "reports/$(basename "$f" .jtl)"
-          done
-
       - uses: actions/upload-artifact@v4
         if: always()
         with:
