@@ -244,7 +244,7 @@ jobs:
           for p in light medium heavy; do
             for i in 1 2 3; do
               jmeter -n \
-                     -q jmeter/user.properties \ 
+                     -q jmeter/user.properties \
                      -q jmeter/profiles/${p}.properties \
                      -t jmeter/microservices-test-plan.jmx \
                      -l results/${p}-${i}.jtl
