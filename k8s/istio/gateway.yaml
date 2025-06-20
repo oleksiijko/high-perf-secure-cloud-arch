@@ -2,39 +2,42 @@ apiVersion: networking.istio.io/v1beta1
 kind: Gateway
 metadata:
   name: microservices-gw
+  namespace: microservices
 spec:
   selector:
     istio: ingressgateway
   servers:
   - port:
-      number: 80          # ← внешний порт
+      number: 80        # внешний порт
       name: http
       protocol: HTTP
-    hosts: ["*"]
+    hosts:
+    - "*"
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
   name: microservices
+  namespace: microservices
 spec:
-  hosts: ["*"]
-  gateways: ["microservices-gw"]
+  hosts:
+  - "*"
+  gateways:
+  - microservices-gw
   http:
   - match:
-    - uri: { prefix: "/api/profile" }
+    - uri: { prefix: "/api/profile" }     # JMeter: GET /api/profile
     route:
-    - destination:
-        host: account-svc
-        port: { number: 3000 }   # ← внутренний порт Service
+    - destination: { host: account-svc,   port: { number: 80 } }
   - match:
-    - uri: { prefix: "/api/content" }
+    - uri: { prefix: "/api/content" }     # JMeter: POST /api/content
     route:
-    - destination: { host: content-svc,   port: { number: 3000 } }
+    - destination: { host: content-svc,   port: { number: 80 } }
   - match:
-    - uri: { prefix: "/api/analytics" }
+    - uri: { prefix: "/api/analytics" }   # JMeter: GET /api/analytics
     route:
-    - destination: { host: analytics-svc, port: { number: 3000 } }
+    - destination: { host: analytics-svc, port: { number: 80 } }
   - match:
-    - uri: { prefix: "/api/crypto" }
+    - uri: { prefix: "/api/crypto" }      # (добавил на будущее)
     route:
-    - destination: { host: crypto-svc,    port: { number: 3000 } }
+    - destination: { host: crypto-svc,    port: { number: 80 } }
