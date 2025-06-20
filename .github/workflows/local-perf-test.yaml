@@ -209,7 +209,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y jmeter
-
+      - name: Install Python dependencies
+        shell: bash
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install numpy 
       - name: Install JMeter on macOS
         if: runner.os == 'macOS'
         shell: bash
@@ -226,7 +230,8 @@ jobs:
           mkdir results
           for p in light medium heavy; do
             for i in 1 2 3; do
-              jmeter -n -t jmeter/microservices-test-plan.jmx \
+              jmeter -n -Jxstream.safemode=false \ 
+                     -t jmeter/microservices-test-plan.jmx \
                      -p jmeter/profiles/${p}.properties \
                      -l results/${p}-${i}.jtl
             done
