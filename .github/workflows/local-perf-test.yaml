@@ -101,6 +101,13 @@ jobs:
             istioctl install -y --set profile=minimal
           fi
 
+      - name: Port-forward Istio Ingress
+        shell: bash
+        run: |
+          kubectl -n istio-system wait --for=condition=ready pod -l app=istio-ingressgateway --timeout=120s
+          kubectl -n istio-system port-forward svc/istio-ingressgateway 8080:80 &
+          echo "::notice::ingress port-forward PID $!"
+
       - name: Show manifest directory structure
         shell: bash
         run: |
