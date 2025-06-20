@@ -112,6 +112,14 @@ jobs:
         shell: bash
         run: |
           find k8s -maxdepth 2 -type f -name '*.yaml' | sort
+          
+      - name: Relax PodSecurity for Istio sidecars 
+        shell: bash
+        run: |
+          kubectl label --overwrite namespace microservices \
+            pod-security.kubernetes.io/enforce=privileged \
+            pod-security.kubernetes.io/audit=baseline \
+            pod-security.kubernetes.io/warn=baseline
 
       - name: Apply Kubernetes manifests
         shell: bash
