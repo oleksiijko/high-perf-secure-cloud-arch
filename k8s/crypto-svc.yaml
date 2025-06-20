@@ -23,6 +23,8 @@ spec:
           ports:
             - containerPort: 3000
           env:
+            - name: LOG_DIR
+              value: /app/logs
             - name: CRYPTO_KEY
               valueFrom:
                 secretKeyRef:
@@ -36,31 +38,22 @@ spec:
               cpu: "200m"
               memory: "256Mi"
           volumeMounts:
-              readOnly: true 
+            - name: tmp-storage
+              mountPath: /tmp
             - name: logs
               mountPath: /app/logs
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
-            readOnlyRootFilesystem: true
+            readOnlyRootFilesystem: false
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
             seccompProfile:
               type: RuntimeDefault
       volumes:
-        - name: tls
-          secret:
-            secretName: tls-secret
-            items: 
-              - key: tls.key
-                path: server.key  
-              - key: tls.crt
-                path: server.crt
-              - key: ca.crt
-                path: ca.crt
-              # - key: ca.key
-              #   path: ca.key
+        - name: tmp-storage
+          emptyDir: {}
         - name: logs
           emptyDir: {}
 ---

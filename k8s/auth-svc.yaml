@@ -23,7 +23,7 @@ spec:
           ports:
             - containerPort: 3000
           env:
-            - name: JWT_SECRET
+            - name: JWT_SECRET             # остаётся
               valueFrom:
                 secretKeyRef:
                   name: jwt-secret
@@ -41,25 +41,13 @@ spec:
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
-            readOnlyRootFilesystem: true
+            readOnlyRootFilesystem: false   # нужно писать логи
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
             seccompProfile:
               type: RuntimeDefault
       volumes:
-        - name: tls
-          secret:
-            secretName: tls-secret
-            items: 
-              - key: tls.key
-                path: server.key  
-              - key: tls.crt
-                path: server.crt
-              - key: ca.crt
-                path: ca.crt
-              # - key: ca.key
-              #   path: ca.key
         - name: logs
           emptyDir: {}
 ---
