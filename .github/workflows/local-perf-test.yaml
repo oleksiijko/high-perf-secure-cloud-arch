@@ -158,22 +158,54 @@ jobs:
         shell: bash
         run: kubectl rollout restart deployment -n microservices
 
-      - name: Wait for all pods (deployment → ready → живёт ≥60 с)
+      - name: Wait for all pods (watch + describe + logs)
         shell: bash
         run: |
-          set -e
-          kubectl wait --for=condition=available deployment --all -n microservices --timeout=600s
+          set -euo pipefail
+
+          # ───── 1. online-watch: показываем статус pod-ов в реальном времени ─────
+          kubectl get pods -n microservices -w --no-headers &
+          WATCH_PID=$!
+
+          # ───── 2. ждём, пока деплойменты станут available ─────
+          if ! kubectl wait --for=condition=available deployment --all \
+                -n microservices --timeout=600s; then
+            echo "::error::Timeout waiting for deployments"
+          fi
+
+          # ───── 3. +60 с стабильности (не флапают) ─────
           for i in {1..12}; do
             NOTREADY=$(kubectl get pods -n microservices --no-headers \
-                        | awk '$2 !~ /1\/1/ {print}')
+                        | awk '$2 !~ /1\/1/ {print $1"/"$2}')
             [ -z "$NOTREADY" ] && break
             sleep 5
           done
-          if [ -n "$NOTREADY" ]; then
-            echo "::error::Pods still not stable after waiting"
-            echo "$NOTREADY"
-            exit 1
+
+          # ───── 4. всё хорошо → выходим ─────
+          kill $WATCH_PID
+          if [ -z "$NOTREADY" ]; then
+            echo "✅ All pods stable"
+            exit 0
           fi
+
+          # ───── 5. проблемы: describe + tail-logs ─────
+          echo "::error::Pods still not stable after waiting"
+          echo "$NOTREADY"
+
+          for p in $NOTREADY; do
+            NS=${p%%/*}; POD=${p##*/}
+            echo "─── describe $NS/$POD ───"
+            kubectl describe pod "$POD" -n "$NS" || true
+            echo "─── logs $NS/$POD (tail 100) ───"
+            # выводим логи всех контейнеров (app + sidecar, если есть)
+            for c in $(kubectl get pod "$POD" -n "$NS" -o jsonpath='{.spec.containers[*].name}'); do
+              echo "--- container: $c ---"
+              kubectl logs "$POD" -n "$NS" -c "$c" --tail=100 || true
+            done
+          done
+
+          exit 1   # завершаем джобу неуспехом
+
 
       - name: Verify deployments exist
         shell: bash
