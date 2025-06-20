@@ -28,7 +28,7 @@ spec:
             httpGet:
               path: /health
               port: 3000
-            failureThreshold: 30   # ≈ 60 с до kill’а
+            failureThreshold: 15   # ≈ 60 с до kill’а
             periodSeconds: 2
           readinessProbe:
             httpGet:
@@ -50,11 +50,11 @@ spec:
               mountPath: /app/logs
           resources:
             requests:
-              cpu: "50m"
-              memory: "64Mi"
+              cpu: "150m"
+              memory: "256Mi"
             limits:
-              cpu: "100m"
-              memory: "128Mi"
+              cpu: "300m"
+              memory: "512Mi"
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000

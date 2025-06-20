@@ -24,11 +24,11 @@ spec:
             - containerPort: 6379
           resources:
             requests:
-              cpu: 50m
-              memory: 64Mi
+              cpu: "150m"
+              memory: "256Mi"
             limits:
-              cpu: 100m
-              memory: 128Mi
+              cpu: "300m"
+              memory: "512Mi"
           # простые probes самого Redis
           readinessProbe:
             tcpSocket:

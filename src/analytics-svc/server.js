@@ -4,8 +4,12 @@ const path = require('path');
 const http = require('http');
 const jwt = require('jsonwebtoken');
 const logger = require('winston');
+logger.clear().add(new logger.transports.Console({ level: 'info' }));
 const Redis = require('ioredis');
 const app = express();
+
+app.get('/health', (req, res) => res.send('healthy'));
+
 
 const logDir = process.env.LOG_DIR || '/app/logs';
 const logFile = path.join(logDir, 'sample_run.csv');
@@ -26,6 +30,7 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json());
+
 
 let redis;
 if (process.env.NODE_ENV === 'test') {
@@ -91,7 +96,6 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/health', (req, res) => res.send('healthy'));
 app.get('/api/analytics', async (req, res) => {
   const count = parseInt((await redis.get('analytics:requests')) || '0', 10);
   res.json({ requests: count });

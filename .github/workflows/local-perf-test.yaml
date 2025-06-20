@@ -168,8 +168,7 @@ jobs:
           WATCH_PID=$!
 
           # 2️⃣ ждём, когда все Deployment-ы станут Available (≤10 мин)
-          if ! kubectl wait --for=condition=available deployment --all \
-                -n microservices --timeout=600s; then
+          if ! kubectl wait --for=condition=ready pod -l app -n microservices --timeout=600s
             echo "::warning::Timeout on kubectl wait, collecting diagnostics"
           fi
 
