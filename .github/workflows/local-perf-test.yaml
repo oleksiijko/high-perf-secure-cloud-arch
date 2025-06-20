@@ -112,10 +112,13 @@ jobs:
         shell: bash
         run: |
           find k8s -maxdepth 2 -type f -name '*.yaml' | sort
-          
-      - name: Relax PodSecurity for Istio sidecars 
+
+      - name: Create namespace & relax PodSecurity
         shell: bash
         run: |
+          # 1. сам namespace
+          kubectl apply -f k8s/namespace.yaml
+          # 2. лейблы PSA — теперь ns уже существует
           kubectl label --overwrite namespace microservices \
             pod-security.kubernetes.io/enforce=privileged \
             pod-security.kubernetes.io/audit=baseline \
@@ -125,31 +128,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          kubectl apply -f k8s/namespace.yaml
           kubectl apply -f k8s/secrets.yaml -n microservices
+
           failed=0
-          apply_file() {
-            local file="$1"
-            echo "Applying $file"
-            if kubectl apply -f "$file"; then
-              kubectl get all -n microservices
-            else
-              echo "::error::Failed to apply $file"
-              failed=1
-            fi
+          apply_file(){ local f=$1
+            echo "Applying $f"
+            kubectl apply -f "$f" || { echo "::error::Failed $f"; failed=1; }
           }
+
+          # всё, кроме namespace/secrets
           for f in $(find k8s -name '*.yaml' ! -name 'namespace.yaml' ! -name 'secrets.yaml' ! -name 'podsecuritypolicy.yaml' | sort); do
             apply_file "$f"
           done
-          if [ -d "k8s/istio" ]; then
-            for f in $(find k8s/istio -name '*.yaml' | sort); do
-              apply_file "$f"
-            done
+
+          # Istio-манифесты, если есть
+          if [ -d k8s/istio ]; then
+            for f in $(find k8s/istio -name '*.yaml' | sort); do apply_file "$f"; done
           fi
-          if [ $failed -ne 0 ]; then
-            echo "::error::One or more manifests failed to apply"
-            exit 1
-          fi
+
+          [ $failed -eq 0 ] || { echo "::error::Some manifests failed"; exit 1; }
+
 
       - name: Enable Istio sidecar injection
         shell: bash
