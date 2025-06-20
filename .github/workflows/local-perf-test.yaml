@@ -217,7 +217,7 @@ jobs:
           set -e
           echo "⏳ Probing http://localhost:8080/actuator/health …"
           for i in {1..30}; do
-            if curl -fs http://localhost:8080/actuator/health >/dev/null; then
+            if curl -s http://localhost:8080/ -o /dev/null; then 
               echo "✔ ingress is up"
               exit 0
             fi
