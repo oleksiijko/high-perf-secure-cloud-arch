@@ -154,9 +154,9 @@ jobs:
         run: |
           kubectl label namespace microservices istio-injection=enabled --overwrite
 
-      - name: Restart pods with sidecar
-        shell: bash
-        run: kubectl rollout restart deployment -n microservices
+      # - name: Restart pods with sidecar
+      #   shell: bash
+      #   run: kubectl rollout restart deployment -n microservices
 
       - name: Wait for all pods (watch + describe + logs)
         shell: bash
@@ -328,7 +328,7 @@ jobs:
         run: |
           kubectl -n istio-system port-forward svc/istio-ingressgateway 8080:80 >/dev/null 2>&1 &
           echo "PF_PID=$!" >> $GITHUB_ENV          # сохраним PID
-          for i in {1..60}; do
+          for i in {1..120}; do
             curl -fs http://localhost:8080/api/profile -o /dev/null && break
             sleep 2
           done || { echo "::error::Ingress not ready"; exit 1; }
@@ -342,7 +342,7 @@ jobs:
           for i in {1..60}; do
             curl -s http://localhost:8080/ -o /dev/null && break
             sleep 1
-          done
+          done || { echo "::error::Back-end still not ready"; exit 1; }
 
           mkdir results
           for p in light medium heavy; do
