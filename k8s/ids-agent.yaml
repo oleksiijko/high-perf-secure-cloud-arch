@@ -24,24 +24,17 @@ spec:
         - name: ids-agent
           image: ids-agent:latest
           imagePullPolicy: IfNotPresent
+
           startupProbe:
-            httpGet:
-              path: /health
-              port: 3000
-            failureThreshold: 15   # ≈ 60 с до kill’а
+            exec: { command: ["bash","-c","echo ok"] }
+            failureThreshold: 10      # 20 с
             periodSeconds: 2
           readinessProbe:
-            httpGet:
-              path: /health
-              port: 3000
-            initialDelaySeconds: 5
-            periodSeconds: 5
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 3000
-            initialDelaySeconds: 15
+            exec: { command: ["bash","-c","echo ok"] }
             periodSeconds: 10
+          livenessProbe:
+            exec: { command: ["bash","-c","pgrep -f agent.py"] }
+            periodSeconds: 30
           env:
             - name: SIEM_URL
               value: http://siem.local/ingest

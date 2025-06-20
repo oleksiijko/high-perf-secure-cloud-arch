@@ -3,6 +3,9 @@ import time
 import json
 import psutil
 import requests
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+PORT = 3000
 
 SIEM_URL = os.getenv('SIEM_URL', 'http://siem.local/ingest')
 ALLOWED_DIRS = ['/app', '/usr']
@@ -18,6 +21,18 @@ if not container_id:
         container_id = 'unknown'
 
 suspicious_counts = {}
+
+def run_http():
+    class Health(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == '/health':
+                self.send_response(200); self.end_headers()
+                self.wfile.write(b'healthy')
+            else:
+                self.send_response(404); self.end_headers()
+    HTTPServer(('', PORT), Health).serve_forever()
+
+threading.Thread(target=run_http, daemon=True).start()
 
 while True:
     for proc in psutil.process_iter(['pid', 'open_files', 'cmdline']):
