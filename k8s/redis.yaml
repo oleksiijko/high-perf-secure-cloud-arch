@@ -1,19 +1,10 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: redis
-  namespace: microservices
-spec:
-  selector:
-    app: redis
-  ports:
-  - port: 6379
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis
   namespace: microservices
+  labels:
+    app: redis
 spec:
   replicas: 1
   selector:
@@ -23,16 +14,41 @@ spec:
     metadata:
       labels:
         app: redis
+      annotations:
+        sidecar.istio.io/inject: "false" 
     spec:
       containers:
-      - name: redis
-        image: redis:7-alpine
-        ports:
-        - containerPort: 6379
-        resources:
-          requests:
-            cpu: 50m
-            memory: 64Mi
-          limits:
-            cpu: 100m
-            memory: 128Mi
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          # простые probes самого Redis
+          readinessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: microservices
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
