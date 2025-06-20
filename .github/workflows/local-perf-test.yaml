@@ -60,7 +60,7 @@ jobs:
         with:
           version: v0.20.0
           config: kind-config.yaml
-          
+
       - name: Install metrics-server in kind
         shell: bash
         run: |
@@ -242,7 +242,7 @@ jobs:
           mkdir results
           for p in light medium heavy; do
             for i in 1 2 3; do
-              jmeter -n -Jxstream.safemode=false \ 
+              jmeter -n -Jxstream.safemode=false \
                      -t jmeter/microservices-test-plan.jmx \
                      -q jmeter/profiles/${p}.properties \
                      -l results/${p}-${i}.jtl
