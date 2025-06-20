@@ -98,7 +98,7 @@ jobs:
             ISTIO_DIR=$(ls -d istio-*)
             echo "$ISTIO_DIR/bin" >> "$GITHUB_PATH"
             export PATH="$PATH:$ISTIO_DIR/bin"
-            istioctl install -y --set profile=minimal
+            istioctl install -y --set profile=demo
           fi
 
       - name: Port-forward Istio Ingress
