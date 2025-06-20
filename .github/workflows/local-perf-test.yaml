@@ -226,6 +226,7 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           pip install numpy 
+          pip install numpy pandas
       - name: Install JMeter on macOS
         if: runner.os == 'macOS'
         shell: bash
@@ -243,6 +244,7 @@ jobs:
           for p in light medium heavy; do
             for i in 1 2 3; do
               jmeter -n \
+                     -q jmeter/user.properties \ 
                      -q jmeter/profiles/${p}.properties \
                      -Jxstream.safemode=false \
                      -t jmeter/microservices-test-plan.jmx \
