@@ -1,7 +1,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
+const http = require('http');
 const jwt = require('jsonwebtoken');
 const logger = require('winston');
 const app = express();
@@ -75,10 +75,7 @@ app.post('/api/content', (req, res) => res.json({ status: 'ok' }));
 
 module.exports = app;
 if (require.main === module) {
-  const key = fs.readFileSync(path.join(__dirname, 'key.pem'));
-  const cert = fs.readFileSync(path.join(__dirname, 'cert.pem'));
-  https
-    .createServer({ key, cert, requestCert: true, ca: [cert] }, app)
-    .listen(3000, () => logger.info('content-svc listening on 3000'));
+    http.createServer(app)
+        .listen(3000, () => logger.info('content-svc listening on 3000'));
 }
 

@@ -1,7 +1,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
+const http = require('http');
 const winston = require('winston');
 const { createClient } = require('redis');
 const jwt = require('jsonwebtoken');
@@ -83,17 +83,6 @@ app.get('/test', (req, res) => res.send('ok'));
 module.exports = app;
 
 if (require.main === module) {
-  const certDir = process.env.CERT_DIR || path.join(__dirname, '../../certs');
-  https
-    .createServer(
-      {
-        key: fs.readFileSync(path.join(certDir, 'server.key')),
-        cert: fs.readFileSync(path.join(certDir, 'server.crt')),
-        ca: fs.readFileSync(path.join(certDir, 'ca.crt')),
-        requestCert: true,
-        rejectUnauthorized: false,
-      },
-      app
-    )
-    .listen(3000, () => logger.info('api-gateway listening on 3000'));
+  http.createServer(app)
+    .listen(3000, () => logger.info('api-gateway HTTP listening on 3000'));
 }

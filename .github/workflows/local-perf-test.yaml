@@ -113,6 +113,11 @@ jobs:
         run: |
           find k8s -maxdepth 2 -type f -name '*.yaml' | sort
 
+      - name: Enable Istio sidecar injection
+        shell: bash
+        run: |
+          kubectl label namespace microservices istio-injection=enabled --overwrite
+
       - name: Apply Kubernetes manifests
         shell: bash
         run: |
@@ -191,40 +196,6 @@ jobs:
         shell: powershell
         run: kubectl get events -A --sort-by=.metadata.creationTimestamp | Select-Object -Last 50
 
-      # - name: Wait until all services are healthy 
-      #   run: |
-      #     set -e
-      #     echo "⏳ Waiting for Docker healthchecks…"
-      #     timeout=$((SECONDS+120))                
-      #     while [[ $SECONDS -lt $timeout ]]; do
-      #       unhealthy=$(docker compose ps --filter "health=unhealthy" -q)
-      #       starting=$(docker compose ps --filter "health=starting"  -q)
-      #       if [[ -z $unhealthy && -z $starting ]]; then
-      #         echo "✔ All containers are healthy"
-      #         break
-      #       fi
-      #       sleep 3
-      #     done
-      #     if [[ -n $unhealthy || -n $starting ]]; then
-      #       echo "❌ Some services are still unhealthy"
-      #       docker compose ps
-      #       exit 1
-      #     fi
-
-      # - name: Wait until ingress answers on 8080
-      #   shell: bash
-      #   run: |
-      #     set -e
-      #     echo "⏳ Probing http://localhost:8080/actuator/health …"
-      #     for i in {1..30}; do
-      #       if curl -s http://localhost:8080/ -o /dev/null; then 
-      #         echo "✔ ingress is up"
-      #         exit 0
-      #       fi
-      #       sleep 2
-      #     done
-      #     echo "::error::Ingress did not respond on localhost:8080"
-      #     exit 1
 
       - name: Ensure pods are healthy (bash)
         if: runner.os != 'Windows'
@@ -285,6 +256,20 @@ jobs:
         shell: powershell
         run: choco install jmeter -y
 
+      - name: Wait until ingress returns 200
+        shell: bash
+        run: |
+          kubectl -n istio-system port-forward svc/istio-ingressgateway 8080:80 >/dev/null 2>&1 &
+          PF_PID=$!
+          trap 'kill $PF_PID' EXIT
+          for i in {1..60}; do
+            if curl -fs http://localhost:8080/api/profile -o /dev/null; then
+              echo "Ingress ready"; exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Ingress still returns error after 120 s"; exit 1
+
       - name: Run JMeter (with port-forward)
         shell: bash
         run: |
@@ -314,10 +299,57 @@ jobs:
             done
           done
 
+      - name: Generate JMeter HTML dashboards
+        shell: bash
+        run: |
+          mkdir -p reports
+          for f in results/*.jtl; do
+            dir="reports/$(basename "$f" .jtl)"
+            jmeter -g "$f" -o "$dir"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jmeter-html
+          path: reports/
+
+      - name: Generate JMeter dashboards
+        shell: bash
+        run: |
+          mkdir -p reports
+          for f in results/*.jtl; do
+            jmeter -g "$f" -o "reports/$(basename "$f" .jtl)"
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jmeter-html
+          path: reports/
+
       - name: Aggregate metrics
         shell: bash
         run: |
           python3 metrics.py results | tee summary.txt
+
+      - name: Publish job summary
+        shell: bash
+        run: |
+          TP=$(grep -m1 '^THROUGHPUT' summary.txt | awk '{print $2}')
+          P95=$(grep -m1 '^LATENCY_P95' summary.txt | awk '{print $2}')
+          echo "### 📊 Performance summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "* **Throughput:** ${TP} req/s"   >> "$GITHUB_STEP_SUMMARY"
+          echo "* **p95 latency:** ${P95} ms"    >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce SLA
+        shell: bash
+        run: |
+          TP=$(grep -m1 '^THROUGHPUT' summary.txt | awk '{print $2}')
+          P95=$(grep -m1 '^LATENCY_P95' summary.txt | awk '{print $2}')
+          if (( $(echo "$TP < $THROUGHPUT_THRESHOLD" | bc -l) )); then
+            echo "::error::Throughput $TP < threshold $THROUGHPUT_THRESHOLD"; exit 1; fi
+          if (( $(echo "$P95 > $LATENCY_THRESHOLD"    | bc -l) )); then
+            echo "::error::p95 $P95 > threshold $LATENCY_THRESHOLD"; exit 1;  fi
 
       - name: Upload JMeter results
         if: always() 

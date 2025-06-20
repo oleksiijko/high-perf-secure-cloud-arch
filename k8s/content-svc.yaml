@@ -23,8 +23,6 @@ spec:
           ports:
             - containerPort: 3000
           env:
-            - name: CERT_DIR
-              value: /certs
             - name: LOG_DIR
               value: /app/logs
           resources:
@@ -35,8 +33,6 @@ spec:
               cpu: "200m"
               memory: "256Mi"
           volumeMounts:
-            - name: tls
-              mountPath: /certs
             - name: logs
               mountPath: /app/logs
           securityContext:
@@ -64,5 +60,6 @@ spec:
   selector:
     app: content-svc
   ports:
-    - port: 80
+    - name: http
+      port: 80
       targetPort: 3000

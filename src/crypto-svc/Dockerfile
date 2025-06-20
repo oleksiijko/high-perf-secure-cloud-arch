@@ -1,10 +1,6 @@
 FROM node:18-alpine
 WORKDIR /app
 
-RUN mkdir -p /certs
-COPY certs/server.key  /certs/server.key
-COPY certs/server.crt  /certs/server.crt
-
 COPY cert.pem key.pem ./
 
 COPY package.json package-lock.json ./

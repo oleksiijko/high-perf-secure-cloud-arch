@@ -1,7 +1,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
+const http = require('http');
 const jwt = require('jsonwebtoken');
 const winston = require('winston');
 const crypto = require('crypto');
@@ -123,17 +123,6 @@ app.post('/decrypt', (req, res) => {
 
 module.exports = app;
 if (require.main === module) {
-  const certDir = process.env.CERT_DIR || path.join(__dirname, '../../certs');
-  https
-    .createServer(
-      {
-        key: fs.readFileSync(path.join(certDir, 'server.key')),
-        cert: fs.readFileSync(path.join(certDir, 'server.crt')),
-        ca: fs.readFileSync(path.join(certDir, 'ca.crt')),
-        requestCert: true,
-        rejectUnauthorized: false,
-      },
-      app
-    )
-    .listen(3000, () => logger.info('crypto-svc listening on 3000'));
+  http.createServer(app)
+      .listen(3000, () => logger.info('crypto-svc listening on 3000'));
 }

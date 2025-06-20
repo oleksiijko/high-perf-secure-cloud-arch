@@ -23,8 +23,6 @@ spec:
           ports:
             - containerPort: 3000
           env:
-            - name: CERT_DIR
-              value: /certs
             - name: REDIS_URL
               value: redis://redis:6379
             - name: LOG_DIR
@@ -37,8 +35,6 @@ spec:
               cpu: "200m"
               memory: "256Mi"
           volumeMounts:
-            - name: tls
-              mountPath: /certs
             - name: logs
               mountPath: /app/logs
           securityContext:
@@ -66,5 +62,6 @@ spec:
   selector:
     app: analytics-svc
   ports:
-    - port: 80
+    - name: http
+      port: 80
       targetPort: 3000
