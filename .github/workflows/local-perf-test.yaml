@@ -29,6 +29,7 @@
 #   6. Aggregate metrics: python3 metrics.py results
 #
 name: Local Performance Test
+
 on:
   workflow_dispatch:
     inputs:
@@ -44,224 +45,144 @@ jobs:
     runs-on: ubuntu-latest
     env:
       THROUGHPUT_THRESHOLD: ${{ github.event.inputs.throughput_threshold || '0' }}
-      LATENCY_THRESHOLD: ${{ github.event.inputs.latency_threshold || '1000000000' }}
+      LATENCY_THRESHOLD: ${{ github.event.inputs.latency_threshold   || '1000000000' }}
       CLUSTER_NAME: kind
+
     steps:
-      - uses: actions/checkout@v4
+    # ─────────────────────── repo ───────────────────────
+    - uses: actions/checkout@v4
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: v1.28.0
+    # ─────────────────────── kubectl ───────────────────────
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: v1.28.0
 
+    # ─────────────────────── kind cluster ───────────────────────
+    - name: Set up kind cluster (3 nodes)
+      uses: engineerd/setup-kind@v0.5.0
+      with:
+        version: v0.20.0
+        config: kind-config.yaml
 
-      - name: Set up kind cluster with 3 nodes
-        uses: engineerd/setup-kind@v0.5.0
-        with:
-          version: v0.20.0
-          config: kind-config.yaml
+    # ─────────────────────── metrics-server ───────────────────────
+    - name: Install metrics-server in kind
+      shell: bash
+      run: |
+        set -e
+        kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+        kubectl -n kube-system patch deployment metrics-server --type=json -p='[
+          {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"},
+          {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-preferred-address-types=InternalIP,Hostname,ExternalIP"}
+        ]'
+        kubectl -n kube-system rollout status deployment/metrics-server --timeout=60s
 
-      - name: Install metrics-server in kind
-        shell: bash
-        run: |
-          set -e
-          kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+    # ─────────────────────── build & load images ───────────────────────
+    - name: Build Docker images
+      shell: bash
+      run: |
+        set -e
+        for svc in account-svc analytics-svc auth-svc content-svc crypto-svc ids-agent; do
+          docker build -t "${svc}:latest" "./src/${svc}"
+        done
 
-          kubectl -n kube-system patch deployment metrics-server \
-            --type=json \
-            -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"},{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-preferred-address-types=InternalIP,Hostname,ExternalIP"}]'
+    - name: Load images into kind
+      shell: bash
+      run: |
+        set -e
+        for svc in account-svc analytics-svc auth-svc content-svc crypto-svc ids-agent; do
+          kind load docker-image "${svc}:latest" --name "$CLUSTER_NAME"
+        done
 
-          kubectl -n kube-system rollout status deployment/metrics-server --timeout=60s
+    # ─────────────────────── Istio (optional) ───────────────────────
+    - name: Install Istio (optional)
+      if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        if [ -d "k8s/istio" ]; then
+          curl -sL https://istio.io/downloadIstio | ISTIO_VERSION=1.20.1 sh -
+          ISTIO_DIR=$(ls -d istio-*)
+          echo "${ISTIO_DIR}/bin" >> "$GITHUB_PATH"
+          istioctl install -y --set profile=minimal
+        fi
 
-      - name: Build Docker images
-        shell: bash
-        run: |
-          set -e
-          for svc in account-svc analytics-svc auth-svc content-svc crypto-svc ids-agent; do
-            docker build -t "$svc:latest" "./src/$svc"
-          done
+    # ─────────────────────── apply manifests ───────────────────────
+    - name: Apply Kubernetes manifests
+      shell: bash
+      run: |
+        set -euo pipefail
+        kubectl apply -f k8s/namespace.yaml
+        kubectl apply -f k8s/secrets.yaml -n microservices
 
-      - name: Load images into kind
-        shell: bash
-        run: |
-          set -e
-          for svc in account-svc analytics-svc auth-svc content-svc crypto-svc ids-agent; do
-              kind load docker-image "$svc:latest" --name "$CLUSTER_NAME"
-          done
-
-      - name: Install Istio (optional)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          if [ -d "k8s/istio" ]; then
-            curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.20.1 sh -
-            ISTIO_DIR=$(ls -d istio-*)
-            echo "$ISTIO_DIR/bin" >> "$GITHUB_PATH"
-            export PATH="$PATH:$ISTIO_DIR/bin"
-            istioctl install -y --set profile=minimal
+        failed=0
+        apply_file() {
+          local f="$1"
+          echo "Applying $f"
+          if ! kubectl apply -f "$f"; then
+            echo "::error::Failed to apply $f"
+            failed=1
           fi
+        }
 
-      - name: Show manifest directory structure
-        shell: bash
-        run: |
-          find k8s -maxdepth 2 -type f -name '*.yaml' | sort
-
-      - name: Apply Kubernetes manifests
-        shell: bash
-        run: |
-          set -euo pipefail
-          kubectl apply -f k8s/namespace.yaml
-          kubectl apply -f k8s/secrets.yaml -n microservices
-          failed=0
-          apply_file() {
-            local file="$1"
-            echo "Applying $file"
-            if kubectl apply -f "$file"; then
-              kubectl get all -n microservices
-            else
-              echo "::error::Failed to apply $file"
-              failed=1
-            fi
-          }
-          for f in $(find k8s -name '*.yaml' ! -name 'namespace.yaml' ! -name 'secrets.yaml' ! -name 'podsecuritypolicy.yaml' | sort); do
+        for f in $(find k8s -name '*.yaml' ! -name 'namespace.yaml' ! -name 'secrets.yaml' ! -name 'podsecuritypolicy.yaml' | sort); do
+          apply_file "$f"
+        done
+        if [ -d "k8s/istio" ]; then
+          for f in $(find k8s/istio -name '*.yaml' | sort); do
             apply_file "$f"
           done
-          if [ -d "k8s/istio" ]; then
-            for f in $(find k8s/istio -name '*.yaml' | sort); do
-              apply_file "$f"
-            done
-          fi
-          if [ $failed -ne 0 ]; then
-            echo "::error::One or more manifests failed to apply"
-            exit 1
-          fi
-          kubectl rollout restart deployment -n microservices
+        fi
+        [ $failed -eq 0 ] || exit 1
+        kubectl rollout restart deployment -n microservices
 
-      - name: Wait for all pods
-        shell: bash
-        run: |
-          # Wait only for deployments in the microservices namespace
-          kubectl wait --for=condition=available deployment --all -n microservices --timeout=600s || true
+    - name: Wait for microservices pods
+      shell: bash
+      run: kubectl wait --for=condition=available deployment --all -n microservices --timeout=600s || true
 
-      - name: Verify deployments exist
-        shell: bash
-        run: |
-          set -e
-          expected="account-svc analytics-svc auth-svc content-svc crypto-svc ids-agent"
-          for d in $expected; do
-            if ! kubectl get deployment "$d" -n microservices > /dev/null 2>&1; then
-              echo "::error::Deployment $d not found"
-              exit 1
-            fi
+    # ─────────────────────── JMeter 5.6.2 ───────────────────────
+    - name: Download JMeter 5.6.2
+      shell: bash
+      run: |
+        set -e
+        JMETER_VERSION=5.6.2
+        curl -sLfO "https://downloads.apache.org/jmeter/binaries/apache-jmeter-${JMETER_VERSION}.tgz"
+        tar -xzf "apache-jmeter-${JMETER_VERSION}.tgz"
+        export PATH="$PWD/apache-jmeter-${JMETER_VERSION}/bin:$PATH"
+        echo "$PWD/apache-jmeter-${JMETER_VERSION}/bin" >> "$GITHUB_PATH"
+        jmeter -v   #--- показать версию для логов
+
+    # ─────────────────────── Python deps ───────────────────────
+    - name: Install Python dependencies
+      shell: bash
+      run: |
+        python3 -m pip install --upgrade pip
+        pip install numpy pandas
+
+    # ─────────────────────── Run JMeter plan ───────────────────────
+    - name: Run JMeter test plan
+      shell: bash
+      run: |
+        mkdir results
+        for p in light medium heavy; do
+          for i in 1 2 3; do
+            jmeter -n -Jxstream.safemode=false \
+                   -q jmeter/user.properties \
+                   -q jmeter/profiles/${p}.properties \
+                   -t jmeter/microservices-test-plan.jmx \
+                   -l results/${p}-${i}.jtl
           done
+        done
 
-      - name: List all pods
-        shell: bash
-        run: kubectl get pods -A -o wide
+    # ─────────────────────── Aggregate metrics ───────────────────────
+    - name: Aggregate metrics
+      shell: bash
+      run: python3 metrics.py results | tee summary.txt
 
-      - name: Describe non-running pods (bash)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          kubectl get pods -A --field-selector=status.phase!=Running,status.phase!=Succeeded -o name \
-            | tail -n 20 | xargs -r -n1 kubectl describe || true
-
-      - name: Describe non-running pods (PowerShell)
-        if: runner.os == 'Windows'
-        shell: powershell
-        run: |
-          $pods = kubectl get pods -A --field-selector=status.phase!=Running,status.phase!=Succeeded -o name
-          $selected = $pods | Select-Object -Last 20
-          if ($selected) { $selected | ForEach-Object { kubectl describe $_ } }
-
-      - name: Show recent events (bash)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: kubectl get events -A --sort-by=.metadata.creationTimestamp | tail -n 50
-
-      - name: Show recent events (PowerShell)
-        if: runner.os == 'Windows'
-        shell: powershell
-        run: kubectl get events -A --sort-by=.metadata.creationTimestamp | Select-Object -Last 50
-
-      - name: Ensure pods are healthy (bash)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          set -e
-          BAD=$(kubectl get pods -A --no-headers | awk '$4 ~ /(CrashLoopBackOff|ImagePullBackOff|ErrImagePull|Error|Pending|Failed)/{print $1" "$2" "$4}')
-          if [ -n "$BAD" ]; then
-            echo "::error::Pods in problematic state:" && echo "$BAD"
-            NS=$(echo "$BAD" | head -n1 | awk '{print $1}')
-            POD=$(echo "$BAD" | head -n1 | awk '{print $2}')
-            echo "Logs from $NS/$POD:" && kubectl logs -n "$NS" "$POD" --tail=20 || true
-            exit 1
-          fi
-
-      - name: Ensure pods are healthy (PowerShell)
-        if: runner.os == 'Windows'
-        shell: powershell
-        run: |
-          $pods = kubectl get pods -A --no-headers
-          $bad = $pods | Where-Object { $_ -match 'CrashLoopBackOff|ImagePullBackOff|ErrImagePull|Error|Pending|Failed' }
-          if ($bad) {
-            Write-Host 'Pods in problematic state:'
-            $bad
-            $first = $bad[0] -split '\s+'
-            $ns = $first[0]
-            $pod = $first[1]
-            Write-Host "Logs from $ns/$pod:"
-            kubectl logs -n $ns $pod --tail=20 | Out-Host
-            exit 1
-          }
-
-      - name: Install JMeter on Linux
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          JMETER_VERSION=5.6.2
-          curl -sL "https://downloads.apache.org//jmeter/binaries/apache-jmeter-${JMETER_VERSION}.tgz" \
-            | tar -xz
-          echo "$PWD/apache-jmeter-${JMETER_VERSION}/bin" >> "$GITHUB_PATH"
-      - name: Install Python dependencies
-        shell: bash
-        run: |
-          python3 -m pip install --upgrade pip
-          pip install numpy 
-          pip install numpy pandas
-      - name: Install JMeter on macOS
-        if: runner.os == 'macOS'
-        shell: bash
-        run: brew install jmeter
-
-      - name: Install JMeter on Windows
-        if: runner.os == 'Windows'
-        shell: powershell
-        run: choco install jmeter -y
-
-      - name: Run JMeter test plan
-        shell: bash
-        run: |
-          mkdir results
-          for p in light medium heavy; do
-            for i in 1 2 3; do
-              jmeter -n -Jxstream.safemode=false -q jmeter/user.properties \
-                     -q jmeter/profiles/${p}.properties \
-                     -t jmeter/microservices-test-plan.jmx \
-                     -l results/${p}-${i}.jtl
-            done
-          done
-
-      - name: Aggregate metrics
-        shell: bash
-        run: |
-          python3 metrics.py results | tee summary.txt
-
-      - name: Upload JMeter results
-        uses: actions/upload-artifact@v4
-        with:
-          name: jmeter-results-${{ matrix.os }}
-          path: |
-            results/*.jtl
-            summary.txt
-
+    # ─────────────────────── Upload artefacts ───────────────────────
+    - name: Upload JMeter results
+      uses: actions/upload-artifact@v4
+      with:
+        name: jmeter-results
+        path: |
+          results/*.jtl
+          summary.txt
