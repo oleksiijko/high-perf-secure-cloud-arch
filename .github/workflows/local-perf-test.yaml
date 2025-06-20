@@ -243,7 +243,7 @@ jobs:
           mkdir results
           for p in light medium heavy; do
             for i in 1 2 3; do
-              jmeter -n \
+              jmeter -n -Jxstream.safemode=false \
                      -q jmeter/user.properties \
                      -q jmeter/profiles/${p}.properties \
                      -t jmeter/microservices-test-plan.jmx \
