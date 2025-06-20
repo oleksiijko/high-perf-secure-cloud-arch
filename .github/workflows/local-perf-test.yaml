@@ -219,8 +219,10 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jmeter
+          JMETER_VERSION=5.6.2
+          curl -sL "https://downloads.apache.org//jmeter/binaries/apache-jmeter-${JMETER_VERSION}.tgz" \
+            | tar -xz
+          echo "$PWD/apache-jmeter-${JMETER_VERSION}/bin" >> "$GITHUB_PATH"
       - name: Install Python dependencies
         shell: bash
         run: |
