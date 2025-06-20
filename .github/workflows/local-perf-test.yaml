@@ -299,6 +299,10 @@ jobs:
             sleep 1
           done
 
+          for p in profile content analytics; do
+            curl -fsS "http://localhost:8080/api/$p" -o /dev/null && echo "/api/$p OK"
+          done
+
           mkdir results
           for p in light medium heavy; do
             for i in 1 2 3; do

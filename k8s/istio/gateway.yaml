@@ -6,44 +6,35 @@ spec:
   selector:
     istio: ingressgateway
   servers:
-    - port:
-        number: 80
-        name: http
-        protocol: HTTP
-      hosts:
-        - "*"
+  - port:
+      number: 80          # ← внешний порт
+      name: http
+      protocol: HTTP
+    hosts: ["*"]
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
   name: microservices
 spec:
-  hosts:
-    - "*"
-  gateways:
-    - microservices-gw
+  hosts: ["*"]
+  gateways: ["microservices-gw"]
   http:
-    - match:
-        - uri:
-            prefix: /account
-      route:
-        - destination:
-            host: account-svc
-            port:
-              number: 80
-    - match:
-        - uri:
-            prefix: /content
-      route:
-        - destination:
-            host: content-svc
-            port:
-              number: 80
-    - match:
-        - uri:
-            prefix: /analytics
-      route:
-        - destination:
-            host: analytics-svc
-            port:
-              number: 80
+  - match:
+    - uri: { prefix: "/api/profile" }
+    route:
+    - destination:
+        host: account-svc
+        port: { number: 3000 }   # ← внутренний порт Service
+  - match:
+    - uri: { prefix: "/api/content" }
+    route:
+    - destination: { host: content-svc,   port: { number: 3000 } }
+  - match:
+    - uri: { prefix: "/api/analytics" }
+    route:
+    - destination: { host: analytics-svc, port: { number: 3000 } }
+  - match:
+    - uri: { prefix: "/api/crypto" }
+    route:
+    - destination: { host: crypto-svc,    port: { number: 3000 } }
