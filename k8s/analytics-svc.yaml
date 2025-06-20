@@ -25,8 +25,15 @@ spec:
           env:
             - name: REDIS_URL
               value: redis://redis:6379
+            - name: DISABLE_RL
+              value: "true"
             - name: LOG_DIR
               value: /app/logs
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-secret
+                  key: secret
           resources:
             requests:
               cpu: "100m"
@@ -47,9 +54,6 @@ spec:
             seccompProfile:
               type: RuntimeDefault
       volumes:
-        - name: tls
-          secret:
-            secretName: tls-secret
         - name: logs
           emptyDir: {}
 ---

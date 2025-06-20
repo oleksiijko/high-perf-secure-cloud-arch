@@ -23,7 +23,11 @@ spec:
           ports:
             - containerPort: 3000
           env:
-            - name: JWT_SECRET             # остаётся
+            - name: DISABLE_RL
+              value: "true"
+            - name: LOG_DIR
+              value: /app/logs
+            - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: jwt-secret
