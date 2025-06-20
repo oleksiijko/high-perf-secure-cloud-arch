@@ -246,7 +246,6 @@ jobs:
               jmeter -n \
                      -q jmeter/user.properties \ 
                      -q jmeter/profiles/${p}.properties \
-                     -Jxstream.safemode=false \
                      -t jmeter/microservices-test-plan.jmx \
                      -l results/${p}-${i}.jtl
             done
