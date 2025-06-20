@@ -163,16 +163,15 @@ jobs:
         run: |
           set -euo pipefail
 
-          # 1️⃣ live-watch: выводим статус всех pod-ов в реальном времени
+          # 1. live-watch
           kubectl get pods -n microservices -w --no-headers &
           WATCH_PID=$!
 
-          # 2️⃣ ждём, когда все Deployment-ы станут Available (≤10 мин)
-          if ! kubectl wait --for=condition=ready pod -l app -n microservices --timeout=600s
-            echo "::warning::Timeout on kubectl wait, collecting diagnostics"
-          fi
+          # 2. ждём Ready-статус всех pod-ов (≤10 мин)
+          kubectl wait --for=condition=ready pod -l app -n microservices --timeout=600s \
+            || echo "::warning::timeout on pod readiness"
 
-          # 3️⃣ +60 с стабильности: pod-ы не должны «флапать»
+          # 3. +60 с стабильности
           for i in {1..12}; do
             NOTREADY=$(kubectl get pods -n microservices --no-headers \
                         | awk '{split($2,a,"/"); if(a[1]!=a[2]) print $1}')
@@ -182,28 +181,28 @@ jobs:
 
           kill "$WATCH_PID"
 
-          # 4️⃣ всё готово — выходим успешно
+          # 4. всё ОК?
           if [ -z "$NOTREADY" ]; then
-            echo "✅ All pods are Ready and stable"
+            echo "✅ All pods stable"
             exit 0
           fi
 
-          # 5️⃣ проблемы: describe + tail-logs (по 100 строк с каждого контейнера)
-          echo "::error::Pods still not Ready after waiting:"
+          # 5. иначе — diagnostics и fail
+          echo "::error::Pods not Ready:"
           echo "$NOTREADY"
 
-          for POD in $NOTREADY; do
-            echo "────────── describe $POD ──────────"
-            kubectl describe pod "$POD" -n microservices || true
-
-            echo "────────── logs $POD (tail 100) ──────────"
-            for C in $(kubectl get pod "$POD" -n microservices -o jsonpath='{.spec.containers[*].name}'); do
-              echo "----- container: $C -----"
-              kubectl logs "$POD" -n microservices -c "$C" --tail=100 || true
+          for P in $NOTREADY; do
+            echo "── describe $P ──"
+            kubectl describe pod "$P" -n microservices || true
+            echo "── logs $P (tail 100) ──"
+            for C in $(kubectl get pod "$P" -n microservices -o jsonpath='{.spec.containers[*].name}'); do
+              echo "--- $C ---"
+              kubectl logs "$P" -n microservices -c "$C" --tail=100 || true
             done
           done
 
           exit 1
+
 
 
 
