@@ -252,7 +252,8 @@ jobs:
               jmeter -n -Jxstream.safemode=false -q jmeter/user.properties \
                      -q jmeter/profiles/${p}.properties \
                      -t jmeter/microservices-test-plan.jmx \
-                     -l results/${p}-${i}.jtl
+                     -l results/${p}-${i}.jtl \
+                     -j results/${p}-${i}.log
             done
           done
 
@@ -262,10 +263,12 @@ jobs:
           python3 metrics.py results | tee summary.txt
 
       - name: Upload JMeter results
+        if: always() 
         uses: actions/upload-artifact@v4
         with:
           name: jmeter-results-${{ matrix.os }}
           path: |
             results/*.jtl
+            results/*.log
             summary.txt
 
