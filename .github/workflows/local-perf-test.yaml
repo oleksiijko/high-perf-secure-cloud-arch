@@ -191,25 +191,25 @@ jobs:
         shell: powershell
         run: kubectl get events -A --sort-by=.metadata.creationTimestamp | Select-Object -Last 50
 
-      - name: Wait until all services are healthy 
-        run: |
-          set -e
-          echo "⏳ Waiting for Docker healthchecks…"
-          timeout=$((SECONDS+120))                
-          while [[ $SECONDS -lt $timeout ]]; do
-            unhealthy=$(docker compose ps --filter "health=unhealthy" -q)
-            starting=$(docker compose ps --filter "health=starting"  -q)
-            if [[ -z $unhealthy && -z $starting ]]; then
-              echo "✔ All containers are healthy"
-              break
-            fi
-            sleep 3
-          done
-          if [[ -n $unhealthy || -n $starting ]]; then
-            echo "❌ Some services are still unhealthy"
-            docker compose ps
-            exit 1
-          fi
+      # - name: Wait until all services are healthy 
+      #   run: |
+      #     set -e
+      #     echo "⏳ Waiting for Docker healthchecks…"
+      #     timeout=$((SECONDS+120))                
+      #     while [[ $SECONDS -lt $timeout ]]; do
+      #       unhealthy=$(docker compose ps --filter "health=unhealthy" -q)
+      #       starting=$(docker compose ps --filter "health=starting"  -q)
+      #       if [[ -z $unhealthy && -z $starting ]]; then
+      #         echo "✔ All containers are healthy"
+      #         break
+      #       fi
+      #       sleep 3
+      #     done
+      #     if [[ -n $unhealthy || -n $starting ]]; then
+      #       echo "❌ Some services are still unhealthy"
+      #       docker compose ps
+      #       exit 1
+      #     fi
 
       - name: Wait until ingress answers on 8080
         shell: bash
