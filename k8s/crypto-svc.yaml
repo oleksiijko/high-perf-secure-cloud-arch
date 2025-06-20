@@ -10,6 +10,11 @@ spec:
       app: crypto-svc
   template:
     metadata:
+      annotations:           
+        sidecar.istio.io/proxyCPU: "200m"
+        sidecar.istio.io/proxyMemory: "256Mi"
+        proxy.istio.io/config: |
+          {"holdApplicationUntilProxyStarts": true}
       labels:
         app: crypto-svc
         role: backend
@@ -22,7 +27,30 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
+
+          # ── probes ─────────────────────────────
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            failureThreshold: 30   # ≈ 60 с до kill’а
+            periodSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+
           env:
+            - name: REDIS_URL
+              value: redis://redis:6379
             - name: LOG_DIR
               value: /app/logs
             - name: CRYPTO_KEY

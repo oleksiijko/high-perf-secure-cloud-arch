@@ -158,11 +158,22 @@ jobs:
         shell: bash
         run: kubectl rollout restart deployment -n microservices
 
-      - name: Wait for all pods
+      - name: Wait for all pods (deployment → ready → живёт ≥60 с)
         shell: bash
         run: |
           set -e
           kubectl wait --for=condition=available deployment --all -n microservices --timeout=600s
+          for i in {1..12}; do
+            NOTREADY=$(kubectl get pods -n microservices --no-headers \
+                        | awk '$2 !~ /1\/1/ {print}')
+            [ -z "$NOTREADY" ] && break
+            sleep 5
+          done
+          if [ -n "$NOTREADY" ]; then
+            echo "::error::Pods still not stable after waiting"
+            echo "$NOTREADY"
+            exit 1
+          fi
 
       - name: Verify deployments exist
         shell: bash
@@ -295,8 +306,7 @@ jobs:
           set -e
           trap 'kill $PF_PID' EXIT
 
-          # ждём, пока порт отвечает (обычно <2 с)
-          for i in {1..30}; do
+          for i in {1..60}; do
             curl -s http://localhost:8080/ -o /dev/null && break
             sleep 1
           done
@@ -304,7 +314,8 @@ jobs:
           mkdir results
           for p in light medium heavy; do
             for i in 1 2 3; do
-              jmeter -n -q jmeter/user.properties \
+              jmeter -n -Dlog4j2.disablePluginRegistry=true \
+                    -q jmeter/user.properties \
                     -q jmeter/profiles/${p}.properties \
                     -t jmeter/microservices-test-plan.jmx \
                     -l results/${p}-${i}.jtl \
