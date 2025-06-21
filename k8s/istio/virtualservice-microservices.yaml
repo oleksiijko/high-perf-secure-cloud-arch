@@ -1,0 +1,55 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: microservices
+  namespace: microservices
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - microservices-gw
+  http:
+  - match:
+    - uri:
+        prefix: /api/auth
+    route:
+    - destination:
+        host: auth-svc
+        port:
+          number: 80
+
+  - match:
+    - uri:
+        prefix: /api/profile
+    route:
+    - destination:
+        host: auth-svc
+        port:
+          number: 80
+
+  - match:
+    - uri:
+        prefix: /api/content
+    route:
+    - destination:
+        host: content-svc
+        port:
+          number: 80
+
+  - match:
+    - uri:
+        prefix: /api/analytics
+    route:
+    - destination:
+        host: analytics-svc
+        port:
+          number: 80
+
+  - match:
+    - uri:
+        prefix: /api/crypto
+    route:
+    - destination:
+        host: crypto-svc
+        port:
+          number: 80
