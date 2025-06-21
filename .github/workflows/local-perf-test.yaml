@@ -350,22 +350,30 @@ jobs:
         shell: bash
         run: |
           set -xeuo pipefail
-          trap 'kill $PF_PID' EXIT
 
-          # 1) дождаться, пока бекенд начнёт отвечать
+          # -- 0) port-forward Istio-gateway (если ещё не сделано) --
+          kubectl -n istio-system port-forward svc/istio-ingressgateway 8080:80 &
+          PF_PID=$!
+          trap 'kill "$PF_PID"' EXIT          # теперь переменная точно объявлена
+
+          # -- 1) ждём readiness бекенда через port-forward --
           for i in {1..60}; do
             if curl -s http://localhost:8080/ -o /dev/null; then
-              echo "Backend is up"
-              break
+              echo "Backend is up"; break
             fi
             sleep 1
           done || { echo "::error::Back-end still not ready"; exit 1; }
 
-          # 2) прогон JMeter с выводом в консоль + в файл
-          mkdir -p results
+          # -- 2) JWT + тесты --
+          pip install --quiet --no-cache-dir PyJWT==2.9.0
           export JWT_SECRET=demo-secret
           TOKEN=$(python scripts/make_jwt.py)
-          echo "accessToken=$TOKEN" >> jmeter/user.properties
+
+          # health-check через Istio-gateway DNS-имя внутри кластера
+          curl -f -H "Authorization: Bearer $TOKEN" \
+              http://localhost:8080/api/profile
+
+          echo "accessToken=$TOKEN" > jmeter/user.properties
 
           for profile in light medium heavy; do
             for run in 1 2 3; do
@@ -378,13 +386,12 @@ jobs:
                 -t jmeter/microservices-test-plan.jmx \
                 -l results/${profile}-${run}.jtl \
                 -j results/${profile}-${run}.log \
-                -JaccessToken=$TOKEN \
+                -JaccessToken="$TOKEN" \
               2>&1 | tee results/${profile}-${run}.console.log
 
-              # покажем хвост лога, если в .jtl нет успешных
-              ERR=$(grep -c '<httpSample[^rc="200"]' results/${profile}-${run}.jtl || echo 0)
-              if [ "$ERR" -gt 0 ]; then
-                echo "::error::Found $ERR non-200 responses in ${profile}-${run}.jtl"
+              # alert, если есть не-200
+              if grep -q '<httpSample[^>]*rc="\(4..|5..\)"' results/${profile}-${run}.jtl; then
+                echo "::error::Non-200 responses in ${profile}-${run}.jtl"
                 tail -n50 results/${profile}-${run}.console.log
               fi
             done
