@@ -405,8 +405,7 @@ jobs:
                 -t jmeter/microservices-test-plan.jmx \
                 -l results/${profile}-${run}.jtl \
                 -j results/${profile}-${run}.log \
-                -JaccessToken="$TOKEN" \
-              2>&1 | tee results/${profile}-${run}.console.log
+                -JaccessToken="$TOKEN"
 
               # если в .jtl есть ответы 4xx/5xx — сигнализируем
               if grep -q '<httpSample[^>]*rc="\(4..|5..\)"' results/${profile}-${run}.jtl; then
@@ -433,17 +432,18 @@ jobs:
 
       - name: Aggregate metrics
         shell: bash
-        run: |
-          python3 metrics.py results | tee summary.txt
+        run: python3 metrics.py results > summary-secure.txt
 
       - name: Publish job summary
         shell: bash
         run: |
-          TP=$(grep -m1 '^THROUGHPUT' summary.txt | awk '{print $2}')
-          P95=$(grep -m1 '^LATENCY_P95' summary.txt | awk '{print $2}')
-          echo "### 📊 Performance summary" >> "$GITHUB_STEP_SUMMARY"
-          echo "* **Throughput:** ${TP} req/s"   >> "$GITHUB_STEP_SUMMARY"
-          echo "* **p95 latency:** ${P95} ms"    >> "$GITHUB_STEP_SUMMARY"
+          TP=$(grep -m1 '^THROUGHPUT'  summary-secure.txt | awk '{print $2}')
+          P95=$(grep -m1 '^LATENCY_P95' summary-secure.txt | awk '{print $2}')
+          {
+            echo "### 📊 Performance summary (secure run)"
+            echo "* **Throughput:** ${TP} req/s"
+            echo "* **p95 latency:** ${P95} ms"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Enforce SLA
         shell: bash

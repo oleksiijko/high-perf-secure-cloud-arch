@@ -1,0 +1,58 @@
+name: Baseline Performance Test
+on: workflow_dispatch
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. kind-cluster из одного worker-нода
+      - uses: engineerd/setup-kind@v0.5.0
+        with:
+          version: v0.20.0
+          config: .github/kind-1node.yaml        # ➜ приложен ниже
+
+      # 2. Cборка и deploy **monolith-svc** (без Istio)
+      - name: Build & load monolith
+        shell: bash
+        run: |
+          docker build -t monolith-svc:latest ./src/monolith-svc
+          kind load docker-image monolith-svc:latest
+
+      - name: Apply manifests
+        shell: bash
+        run: kubectl apply -f k8s/monolith.yaml
+
+      # 3. Ждём readiness + port-forward 8080
+      - name: Wait & port-forward
+        shell: bash
+        run: |
+          kubectl wait --for=condition=ready pod -l app=monolith-svc --timeout=180s
+          kubectl port-forward svc/monolith-svc 8080:80 &
+          echo "PF=$!" >> $GITHUB_ENV
+
+      # 4. JMeter ➜ baseline-light / medium / heavy
+      - name: Run JMeter (baseline)
+        shell: bash
+        run: |
+          mkdir -p results
+          for p in light medium heavy; do
+            jmeter -n \
+              -q jmeter/profiles/${p}.properties \
+              -t jmeter/microservices-test-plan.jmx \
+              -JaccessToken=NO_AUTH \
+              -l results/${p}.jtl
+          done
+
+      # 5. Сводка → summary-baseline.txt
+      - name: Aggregate metrics
+        shell: bash
+        run: python3 metrics.py results > summary-baseline.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: baseline-results
+          path: |
+            results/*.jtl
+            summary-baseline.txt
