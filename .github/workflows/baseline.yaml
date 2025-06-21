@@ -32,24 +32,25 @@ jobs:
         config: kind-1node.yaml          # ← относительный путь!
 
     # ───────────────────── 3. билдим и грузим образ ──────────────────────
-    - name: Build & load monolith image
+    # ── build → load → deploy (один шаг) ──────────────────
+    - name: Build image, load to kind, deploy
       run: |
+        # 1. Собираем и загружаем в kind один раз
         docker build -t monolith-svc:latest ./src/monolith-svc
         kind load docker-image monolith-svc:latest
 
-    # ─────────────────────── 4. деплоим манифест ────────────────────────
-    - name: Create namespace & apply monolith
-      run: |
+        # 2. Namespace + Deployment/Service
         kubectl apply -f k8s/namespace.yaml
-        docker build -t monolith-svc:latest ./src/monolith-svc
-        kind load docker-image monolith-svc:latest
-        kubectl apply -f k8s/monolith.yaml
+        kubectl apply -f k8s/monolith.yaml        # ns=microservices
 
-    # ───────────────── 5. ждём readiness и port-forward ─────────────────
+    # ── ожидание pod + port-forward c указанием ns ────────
     - name: Wait pod & port-forward 8080→80
       run: |
-        kubectl wait --for=condition=ready pod -l app=monolith-svc --timeout=180s
-        kubectl port-forward svc/monolith-svc 8080:80 >/dev/null 2>&1 &
+        kubectl wait -n microservices --for=condition=ready pod \
+              -l app=monolith-svc --timeout=180s
+
+        kubectl -n microservices port-forward svc/monolith-svc \
+              8080:80 >/dev/null 2>&1 &
         echo "PF=$!" >> $GITHUB_ENV
 
     # ──────────────── 6. прогоны JMeter (baseline) ──────────────────────
