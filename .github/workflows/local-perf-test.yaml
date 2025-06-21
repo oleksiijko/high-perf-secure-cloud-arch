@@ -321,15 +321,31 @@ jobs:
       #     done
       #     echo "::error::Ingress still returns error after 120 s"; exit 1
 
-      - name: Port-forward Ingress & wait for 200
+      - name: Port-forward Ingress & wait for 200 (with logs)
         shell: bash
         run: |
+          set -euo pipefail
+
           kubectl -n istio-system port-forward svc/istio-ingressgateway 8080:80 >/dev/null 2>&1 &
-          echo "PF_PID=$!" >> $GITHUB_ENV          # сохраним PID
+          PF_PID=$!
+          echo "PF_PID=$PF_PID" >> $GITHUB_ENV
+
           for i in {1..120}; do
-            curl -fs http://localhost:8080/api/profile -o /dev/null && break
+            if curl -fs http://localhost:8080/api/profile -o /dev/null; then
+              echo "Ingress ready"
+              kill "$PF_PID"
+              exit 0
+            fi
             sleep 2
-          done || { echo "::error::Ingress not ready"; exit 1; }
+          done
+
+          echo "::error::Ingress not ready after 240s, dumping ingress-gateway logs"
+          echo "::group::Istio Ingress Gateway logs"
+          kubectl -n istio-system logs -l app=istio-ingressgateway --tail=100 || true
+          echo "::endgroup::"
+
+          kill "$PF_PID"
+          exit 1
 
       - name: Run JMeter
         shell: bash
