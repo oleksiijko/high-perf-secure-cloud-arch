@@ -136,10 +136,15 @@ jobs:
             kubectl apply -f "$f" || { echo "::error::Failed $f"; failed=1; }
           }
 
-          # всё, кроме namespace/secrets
-          for f in $(find k8s -name '*.yaml' ! -name 'namespace.yaml' ! -name 'secrets.yaml' ! -name 'podsecuritypolicy.yaml' | sort); do
+          # всё, кроме namespace / secrets / monolith
+          for f in $(find k8s -name '*.yaml' \
+                    ! -name 'namespace.yaml' \
+                    ! -name 'secrets.yaml' \
+                    ! -name 'podsecuritypolicy.yaml' \
+                    ! -name 'monolith*.yaml' | sort); do
             apply_file "$f"
           done
+
 
           # Istio-манифесты, если есть
           if [ -d k8s/istio ]; then
