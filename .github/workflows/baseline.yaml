@@ -1,73 +1,73 @@
 name: Baseline Performance Test
-on: workflow_dispatch
+on: workflow_dispatch           # запуск вручную из UI
 
 jobs:
   baseline:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+    # ──────────────────────────── 0. код репо ────────────────────────────
+    - uses: actions/checkout@v4
 
-      # 1. kind-cluster из одного worker-нода
-      - name: Write kind config
-        id: write_cfg
-        run: |
-          cat > $RUNNER_TEMP/kind-1node.yaml <<'EOF'
-          kind: Cluster
-          apiVersion: kind.x-k8s.io/v1alpha4
-          nodes:
-            - role: control-plane
-              extraPortMappings:
-                - containerPort: 80
-                  hostPort: 8080
-                  protocol: TCP
-          EOF
-          echo "cfg=$RUNNER_TEMP/kind-1node.yaml" >> "$GITHUB_OUTPUT"
+    # ─────────────────────── 1. пишем конфиг kind ────────────────────────
+    - name: Write kind config
+      run: |
+        cat > kind-1node.yaml <<'EOF'
+        kind: Cluster
+        apiVersion: kind.x-k8s.io/v1alpha4
+        nodes:
+          - role: control-plane
+            extraPortMappings:
+              - containerPort: 80
+                hostPort: 8080
+                protocol: TCP
+        EOF
 
-      # ── 2. Создаём кластер, передаём путь ──────────────────────────
-      - uses: engineerd/setup-kind@v0.5.0
-        with:
-          version: v0.20.0
-          name: kind
-          wait: 300s
-          config: kind-1node.yaml        # ← относительный путь
+    # ─────────────────────── 2. поднимаем кластер ────────────────────────
+    - uses: engineerd/setup-kind@v0.5.0
+      with:
+        version: v0.20.0
+        name: kind
+        wait: 300s
+        config: kind-1node.yaml          # ← относительный путь!
 
-      # дальше ваши шаги без изменений …
-      - name: Build & load monolith
-        shell: bash
-        run: |
-          docker build -t monolith-svc:latest ./src/monolith-svc
-          kind load docker-image monolith-svc:latest
+    # ───────────────────── 3. билдим и грузим образ ──────────────────────
+    - name: Build & load monolith image
+      run: |
+        docker build -t monolith-svc:latest ./src/monolith-svc
+        kind load docker-image monolith-svc:latest
 
-      - name: Apply manifests
-        run: kubectl apply -f k8s/monolith.yaml
+    # ─────────────────────── 4. деплоим манифест ────────────────────────
+    - name: Apply monolith manifests
+      run: kubectl apply -f k8s/monolith.yaml
 
-      - name: Wait & port-forward
-        run: |
-          kubectl wait --for=condition=ready pod -l app=monolith-svc --timeout=180s
-          kubectl port-forward svc/monolith-svc 8080:80 &
-          echo "PF=$!" >> $GITHUB_ENV
-          
-      # 4. JMeter ➜ baseline-light / medium / heavy
-      - name: Run JMeter (baseline)
-        shell: bash
-        run: |
-          mkdir -p results
-          for p in light medium heavy; do
-            jmeter -n \
-              -q jmeter/profiles/${p}.properties \
-              -t jmeter/microservices-test-plan.jmx \
-              -JaccessToken=NO_AUTH \
-              -l results/${p}.jtl
-          done
+    # ───────────────── 5. ждём readiness и port-forward ─────────────────
+    - name: Wait pod & port-forward 8080→80
+      run: |
+        kubectl wait --for=condition=ready pod -l app=monolith-svc --timeout=180s
+        kubectl port-forward svc/monolith-svc 8080:80 >/dev/null 2>&1 &
+        echo "PF=$!" >> $GITHUB_ENV
 
-      # 5. Сводка → summary-baseline.txt
-      - name: Aggregate metrics
-        shell: bash
-        run: python3 metrics.py results > summary-baseline.txt
+    # ──────────────── 6. прогоны JMeter (baseline) ──────────────────────
+    - name: Run JMeter baseline
+      run: |
+        mkdir -p results
+        for p in light medium heavy; do
+          jmeter -n \
+            -q jmeter/profiles/${p}.properties \
+            -t jmeter/microservices-test-plan.jmx \
+            -JaccessToken=NO_AUTH \
+            -l results/${p}.jtl
+        done
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: baseline-results
-          path: |
-            results/*.jtl
-            summary-baseline.txt
+    # ───────────────────── 7. агрегация метрик ──────────────────────────
+    - name: Aggregate metrics
+      run: python3 metrics.py results > summary-baseline.txt
+
+    # ─────────────────────── 8. артефакты CI ────────────────────────────
+    - uses: actions/upload-artifact@v4
+      with:
+        name: baseline-results
+        path: |
+          results/*.jtl
+          summary-baseline.txt
