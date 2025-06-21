@@ -1,4 +1,4 @@
-# k8s/monolith.yaml  (положите в тот же каталог k8s/, где лежат другие *.yaml)
+# k8s/monolith.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,18 +15,24 @@ spec:
     spec:
       containers:
         - name: monolith
-          image: monolith-svc:ci           # ← локальный образ из docker build
+          image: monolith-svc:ci
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 80
+            - containerPort: 8080           # порт внутри контейнера
           resources:
             limits:
-              cpu: "500m"
-              memory: "256Mi"
+              cpu: 500m
+              memory: 256Mi
             requests:
-              cpu: "250m"
-              memory: "128Mi"
-
+              cpu: 250m
+              memory: 128Mi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ "ALL" ]
+            seccompProfile:
+              type: RuntimeDefault
 ---
 apiVersion: v1
 kind: Service
@@ -37,6 +43,6 @@ metadata:
 spec:
   selector: { app: monolith-svc }
   ports:
-    - port: 80          # внутри кластера
-      targetPort: 80    # в контейнере
+    - port: 80           # порт, на который обращаются клиенты внутри кластера
+      targetPort: 8080   # реальный порт приложения в контейнере
       protocol: TCP
