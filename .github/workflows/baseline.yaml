@@ -98,7 +98,6 @@ jobs:
         echo "$PWD/apache-jmeter-${JMETER_VERSION}/bin" >> "$GITHUB_PATH"
         jmeter -v          # → Apache JMeter 5.6.2
 
-    # ──────────────── 6. прогоны JMeter (baseline) ──────────────────────
     - name: Run JMeter baseline profiles (live log)
       shell: bash
       run: |
@@ -109,25 +108,26 @@ jobs:
         mkdir -p results logs
 
         for p in light medium heavy; do
-          echo "─── profile=$p ───"
+          for run in 1 2 3; do
+            echo "─── profile=$p run=$run ───"
 
-          # запускаем JMeter в фоне и одновременно стримим лог
-          jmeter -n \
-            -q "jmeter/profiles/${p}.properties" \
-            -t jmeter/microservices-test-plan.jmx \
-            -Jhost=$TARGET_HOST \
-            -Jport=$TARGET_PORT \
-            -JaccessToken=NO_AUTH \
-            -l "results/${p}.jtl" \
-            -j "logs/${p}.log" &
+            jmeter -n \
+              -q "jmeter/profiles/${p}.properties" \
+              -t jmeter/microservices-test-plan.jmx \
+              -Jhost=$TARGET_HOST \
+              -Jport=$TARGET_PORT \
+              -JaccessToken=NO_AUTH \
+              -l "results/${p}-${run}.jtl" \
+              -j "logs/${p}-${run}.log" &
 
-          JM_PID=$!
-          tail -f "logs/${p}.log" --pid=$JM_PID &
-          TAIL_PID=$!
-          wait $JM_PID
-          kill $TAIL_PID || true
-          echo "─── finished $p ───"
+            JM_PID=$!
+            tail -f "logs/${p}-${run}.log" --pid=$JM_PID &
+            TAIL_PID=$!
+            wait $JM_PID
+            kill $TAIL_PID || true
+          done
         done
+
 
     - name: Install Python dependencies for metrics
       shell: bash

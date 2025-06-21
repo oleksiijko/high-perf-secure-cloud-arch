@@ -65,19 +65,34 @@ jobs:
           tar -xzf "apache-jmeter-${JMETER_VER}.tgz"
           echo "$PWD/apache-jmeter-${JMETER_VER}/bin" >> "$GITHUB_PATH"
 
-      - name: Run JMeter (baseline)
+      - name: Run JMeter baseline profiles (live log)
         shell: bash
         run: |
           set -euo pipefail
-          export TARGET_HOST=127.0.0.1 TARGET_PORT=30080
+          export TARGET_HOST=127.0.0.1
+          export TARGET_PORT=30080
+
           mkdir -p results logs
+
           for p in light medium heavy; do
-            echo "── profile=$p ──"
-            jmeter -n \
-              -q jmeter/profiles/${p}.properties \
-              -t jmeter/microservices-test-plan.jmx \
-              -Jhost=$TARGET_HOST -Jport=$TARGET_PORT -JaccessToken=NO_AUTH \
-              -l results/${p}.jtl -j logs/${p}.log
+            for run in 1 2 3; do
+              echo "─── profile=$p run=$run ───"
+
+              jmeter -n \
+                -q "jmeter/profiles/${p}.properties" \
+                -t jmeter/microservices-test-plan.jmx \
+                -Jhost=$TARGET_HOST \
+                -Jport=$TARGET_PORT \
+                -JaccessToken=NO_AUTH \
+                -l "results/${p}-${run}.jtl" \
+                -j "logs/${p}-${run}.log" &
+
+              JM_PID=$!
+              tail -f "logs/${p}-${run}.log" --pid=$JM_PID &
+              TAIL_PID=$!
+              wait $JM_PID
+              kill $TAIL_PID || true
+            done
           done
 
       # 6. метрики
