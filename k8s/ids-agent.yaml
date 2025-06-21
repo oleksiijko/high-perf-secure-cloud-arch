@@ -17,8 +17,8 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
+        runAsUser: 65532
+        runAsGroup: 65532
         fsGroup: 65532
       hostPID: true
       containers:
@@ -27,15 +27,24 @@ spec:
           imagePullPolicy: IfNotPresent
 
           startupProbe:
-            exec: { command: ["bash","-c","echo ok"] }
-            failureThreshold: 10      # 20 с
+            httpGet:
+              path: /health
+              port: 3000
+            failureThreshold: 10
             periodSeconds: 2
+
           readinessProbe:
-            exec: { command: ["bash","-c","echo ok"] }
+            httpGet:
+              path: /health
+              port: 3000
             periodSeconds: 10
+
           livenessProbe:
-            exec: { command: ["bash","-c","pgrep -f agent.py"] }
+            httpGet:
+              path: /health
+              port: 3000
             periodSeconds: 30
+
           env:
             - name: SIEM_URL
               value: http://siem.local/ingest
