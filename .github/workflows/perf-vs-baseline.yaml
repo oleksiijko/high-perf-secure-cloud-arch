@@ -116,58 +116,215 @@ jobs:
           name: ${{ env.CLUSTER_NAME }}
 
       # 2. metrics-server (для HPA/автоскейла)
-      - name: Install metrics-server
+      - name: Install metrics-server in kind
+        shell: bash
         run: |
+          set -e
           kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+          kubectl -n kube-system patch deployment metrics-server \
+            --type=json \
+            -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"},{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-preferred-address-types=InternalIP,Hostname,ExternalIP"}]'
+
           kubectl -n kube-system rollout status deployment/metrics-server --timeout=60s
 
       # 3. build images
-      - name: Build & load microservice images
+      - name: Build Docker images
+        shell: bash
         run: |
           set -e
           for svc in account-svc analytics-svc auth-svc content-svc crypto-svc ids-agent; do
             docker build -t "$svc:latest" "./src/$svc"
-            kind load docker-image "$svc:latest" --name "$CLUSTER_NAME"
           done
 
-      # 4. manifests
-      - name: Apply Kubernetes manifests
+      - name: Load images into kind
+        shell: bash
         run: |
-          kubectl apply -f k8s/namespace.yaml
-          kubectl label namespace microservices \
-            pod-security.kubernetes.io/enforce=privileged --overwrite
-          kubectl apply -f k8s/secrets.yaml  -n microservices
-          kubectl apply -f k8s/ --recursive  -n microservices
-          # Istio (demo-profile) при наличии каталога
-          if [ -d k8s/istio ]; then
+          set -e
+          for svc in account-svc analytics-svc auth-svc content-svc crypto-svc ids-agent; do
+              kind load docker-image "$svc:latest" --name "$CLUSTER_NAME"
+          done
+
+      - name: Install Istio (optional)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          if [ -d "k8s/istio" ]; then
             curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.20.1 sh -
-            echo "$(ls -d istio-*)/bin" >> "$GITHUB_PATH"
+            ISTIO_DIR=$(ls -d istio-*)
+            echo "$ISTIO_DIR/bin" >> "$GITHUB_PATH"
+            export PATH="$PATH:$ISTIO_DIR/bin"
             istioctl install -y --set profile=demo
           fi
 
-      # 5. ожидание pod-ов
-      - name: Wait for all pods Ready
-        run: kubectl wait --for=condition=ready pod -l app -n microservices --timeout=600s
-
-      # 6. JMeter + Python deps
-      - name: Install JMeter & Python deps
+      - name: Show manifest directory structure
+        shell: bash
         run: |
-          curl -sLfO "https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-${JMETER_VER}.tgz"
-          tar -xzf "apache-jmeter-${JMETER_VER}.tgz"
-          echo "$PWD/apache-jmeter-${JMETER_VER}/bin" >> "$GITHUB_PATH"
-          pip install --upgrade pip && pip install numpy pandas PyJWT
+          find k8s -maxdepth 2 -type f -name '*.yaml' | sort
 
-      # 7. Run JMeter via ingress
-      - name: Run JMeter (secure)
+      - name: Create namespace & relax PodSecurity
+          shell: bash
+          run: |
+            # 1. сам namespace
+            kubectl apply -f k8s/namespace.yaml
+            # 2. лейблы PSA — теперь ns уже существует
+            kubectl label --overwrite namespace microservices \
+              pod-security.kubernetes.io/enforce=privileged \
+              pod-security.kubernetes.io/audit=baseline \
+              pod-security.kubernetes.io/warn=baseline
+
+      # 4. manifests
+      - name: Apply Kubernetes manifests
         shell: bash
         run: |
           set -euo pipefail
-          # port-forward ingress
-          kubectl -n istio-system port-forward svc/istio-ingressgateway 8080:80 >/dev/null 2>&1 &
-          PF=$!
-          trap 'kill $PF' EXIT
+          kubectl apply -f k8s/secrets.yaml -n microservices
 
-          TOKEN=$(python scripts/make_jwt.py)
+          failed=0
+          apply_file(){ local f=$1
+            echo "Applying $f"
+            kubectl apply -f "$f" || { echo "::error::Failed $f"; failed=1; }
+          }
+
+          # всё, кроме namespace/secrets
+          for f in $(find k8s -name '*.yaml' ! -name 'namespace.yaml' ! -name 'secrets.yaml' ! -name 'podsecuritypolicy.yaml' | sort); do
+            apply_file "$f"
+          done
+
+          # Istio-манифесты, если есть
+          if [ -d k8s/istio ]; then
+            for f in $(find k8s/istio -name '*.yaml' | sort); do apply_file "$f"; done
+          fi
+
+          [ $failed -eq 0 ] || { echo "::error::Some manifests failed"; exit 1; }
+
+      - name: Enable Istio sidecar injection
+        shell: bash
+        run: |
+          kubectl label namespace microservices istio-injection=enabled --overwrite
+
+      # 5. ожидание pod-ов
+      - name: Wait for all pods (watch + describe + logs)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # 1. live-watch
+          kubectl get pods -n microservices -w --no-headers &
+          WATCH_PID=$!
+
+          # 2. ждём Ready-статус всех pod-ов (≤10 мин)
+          kubectl wait --for=condition=ready pod -l app -n microservices --timeout=600s \
+            || echo "::warning::timeout on pod readiness"
+
+          # 3. +60 с стабильности
+          for i in {1..12}; do
+            NOTREADY=$(kubectl get pods -n microservices --no-headers \
+                        | awk '{split($2,a,"/"); if(a[1]!=a[2]) print $1}')
+            [ -z "$NOTREADY" ] && break
+            sleep 5
+          done
+
+          kill "$WATCH_PID"
+
+          # 4. всё ОК?
+          if [ -z "$NOTREADY" ]; then
+            echo "✅ All pods stable"
+            exit 0
+          fi
+
+          # 5. иначе — diagnostics и fail
+          echo "::error::Pods not Ready:"
+          echo "$NOTREADY"
+
+          for P in $NOTREADY; do
+            echo "── describe $P ──"
+            kubectl describe pod "$P" -n microservices || true
+            echo "── logs $P (tail 100) ──"
+            for C in $(kubectl get pod "$P" -n microservices -o jsonpath='{.spec.containers[*].name}'); do
+              echo "--- $C ---"
+              kubectl logs "$P" -n microservices -c "$C" --tail=100 || true
+            done
+          done
+
+          exit 1
+
+
+      - name: Verify deployments exist
+        shell: bash
+        run: |
+          set -e
+          expected="account-svc analytics-svc auth-svc content-svc crypto-svc ids-agent"
+          for d in $expected; do
+            if ! kubectl get deployment "$d" -n microservices > /dev/null 2>&1; then
+              echo "::error::Deployment $d not found"
+              exit 1
+            fi
+          done
+
+      - name: List all pods
+        shell: bash
+        run: kubectl get pods -A -o wide
+
+      - name: Describe non-running pods (bash)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          kubectl get pods -A --field-selector=status.phase!=Running,status.phase!=Succeeded -o name \
+            | tail -n 20 | xargs -r -n1 kubectl describe || true
+
+      - name: Show recent events (bash)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: kubectl get events -A --sort-by=.metadata.creationTimestamp | tail -n 50
+
+      - name: Ensure pods are healthy (bash)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -e
+          BAD=$(kubectl get pods -A --no-headers | awk '$4 ~ /(CrashLoopBackOff|ImagePullBackOff|ErrImagePull|Error|Pending|Failed)/{print $1" "$2" "$4}')
+          if [ -n "$BAD" ]; then
+            echo "::error::Pods in problematic state:" && echo "$BAD"
+            NS=$(echo "$BAD" | head -n1 | awk '{print $1}')
+            POD=$(echo "$BAD" | head -n1 | awk '{print $2}')
+            echo "Logs from $NS/$POD:" && kubectl logs -n "$NS" "$POD" --tail=20 || true
+            exit 1
+          fi
+
+      # 6. JMeter + Python deps
+      - name: Install JMeter on Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -e
+          JMETER_VERSION=5.6.2
+          curl -sLfO "https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-${JMETER_VERSION}.tgz"
+          tar -xzf "apache-jmeter-${JMETER_VERSION}.tgz"
+          export PATH="$PWD/apache-jmeter-${JMETER_VERSION}/bin:$PATH"
+          echo "$PWD/apache-jmeter-${JMETER_VERSION}/bin" >> "$GITHUB_PATH"
+          jmeter -v          # → Apache JMeter 5.6.2
+
+      - name: Install Python dependencies
+        shell: bash
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install numpy pandas PyJWT
+
+      - name: Port-forward Ingress & wait for 200 (with logs)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          kubectl -n istio-system port-forward svc/istio-ingressgateway 8080:80 >/dev/null 2>&1 &
+          PF_PID=$!
+          trap 'kill "$PF_PID"' EXIT    # всегда прибьём при выходе
+
+          # ── генерация такого же JWT, как в make_jwt.py ─────────────
+          pip install --quiet --no-cache-dir PyJWT==2.9.0
+          TOKEN=$(python scripts/make_jwt.py)           # ← сначала получаем токен
+
+          mkdir -p results
           cat > jmeter/user.properties <<EOF
           accessToken=$TOKEN
           host=localhost
@@ -176,16 +333,77 @@ jobs:
           password=demo123
           EOF
 
+          for i in {1..120}; do
+            if curl -fs -H "Authorization: Bearer $TOKEN" \
+                  http://localhost:8080/api/profile -o /dev/null; then
+              echo "Ingress ready"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "::error::Ingress not ready after 240s, dumping ingress-gateway logs"
+          echo "::group::Istio Ingress Gateway logs"
+          kubectl -n istio-system logs -l app=istio-ingressgateway --tail=100 || true
+          echo "::endgroup::"
+
+          exit 1
+
+      # 7. Run JMeter via ingress
+      - name: Run JMeter with verbose logs
+        shell: bash
+        run: |
+          set -xeuo pipefail
+
+          kubectl -n istio-system port-forward svc/istio-ingressgateway 8080:80 &
+          PF_PID=$!
+          trap 'kill "$PF_PID"' EXIT
+
+          # -- 1) ждём readiness бэкенда --
+          for i in {1..60}; do
+            if curl -s http://localhost:8080/ -o /dev/null; then
+              echo "Backend is up"; break
+            fi
+            sleep 1
+          done || { echo "::error::Back-end still not ready"; exit 1; }
+
+          # -- 2) генерируем JWT и формируем user.properties --
+          pip install --quiet --no-cache-dir PyJWT==2.9.0
+          TOKEN=$(python scripts/make_jwt.py)          # ← 1-й и единственный вызов
+
           mkdir -p results
+          cat > jmeter/user.properties <<EOF
+          accessToken=$TOKEN
+          host=localhost
+          port=8080
+          username=demo
+          password=demo123
+          EOF
+
+          # -- 3) health-check через gateway --
+          curl -f -H "Authorization: Bearer $TOKEN" \
+              http://localhost:8080/api/profile
+
+          # -- 4) прогоны JMeter --
           for profile in light medium heavy; do
             for run in 1 2 3; do
+              echo "=== Running JMeter profile=$profile run=$run ==="
+
               jmeter -n \
+                -LDEBUG \
+                -Dlog4j2.disablePluginRegistry=true \
                 -q jmeter/user.properties \
                 -q jmeter/profiles/${profile}.properties \
                 -t jmeter/microservices-test-plan.jmx \
                 -l results/${profile}-${run}.jtl \
                 -j results/${profile}-${run}.log \
                 -JaccessToken="$TOKEN"
+
+              # если в .jtl есть ответы 4xx/5xx — сигнализируем
+              if grep -q '<httpSample[^>]*rc="\(4..|5..\)"' results/${profile}-${run}.jtl; then
+                echo "::error::Non-200 responses in ${profile}-${run}.jtl"
+                tail -n50 results/${profile}-${run}.console.log
+              fi
             done
           done
 
