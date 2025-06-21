@@ -331,8 +331,16 @@ jobs:
 
           # ── генерация такого же JWT, как в make_jwt.py ─────────────
           pip install --quiet --no-cache-dir PyJWT==2.9.0
-          export JWT_SECRET=demo-secret
-          TOKEN=$(python scripts/make_jwt.py)
+          TOKEN=$(python scripts/make_jwt.py)           # ← сначала получаем токен
+
+          mkdir -p results
+          cat > jmeter/user.properties <<EOF
+          accessToken=$TOKEN
+          host=localhost
+          port=8080
+          username=demo
+          password=demo123
+          EOF
 
           for i in {1..120}; do
             if curl -fs -H "Authorization: Bearer $TOKEN" \
@@ -355,12 +363,11 @@ jobs:
         run: |
           set -xeuo pipefail
 
-          # -- 0) port-forward Istio-gateway (если ещё не сделано) --
           kubectl -n istio-system port-forward svc/istio-ingressgateway 8080:80 &
           PF_PID=$!
-          trap 'kill "$PF_PID"' EXIT          # теперь переменная точно объявлена
+          trap 'kill "$PF_PID"' EXIT
 
-          # -- 1) ждём readiness бекенда через port-forward --
+          # -- 1) ждём readiness бэкенда --
           for i in {1..60}; do
             if curl -s http://localhost:8080/ -o /dev/null; then
               echo "Backend is up"; break
@@ -368,20 +375,28 @@ jobs:
             sleep 1
           done || { echo "::error::Back-end still not ready"; exit 1; }
 
-          # -- 2) JWT + тесты --
+          # -- 2) генерируем JWT и формируем user.properties --
           pip install --quiet --no-cache-dir PyJWT==2.9.0
-          export JWT_SECRET=demo-secret
-          TOKEN=$(python scripts/make_jwt.py)
+          TOKEN=$(python scripts/make_jwt.py)          # ← 1-й и единственный вызов
 
-          # health-check через Istio-gateway DNS-имя внутри кластера
+          mkdir -p results
+          cat > jmeter/user.properties <<EOF
+          accessToken=$TOKEN
+          host=localhost
+          port=8080
+          username=demo
+          password=demo123
+          EOF
+
+          # -- 3) health-check через gateway --
           curl -f -H "Authorization: Bearer $TOKEN" \
               http://localhost:8080/api/profile
 
-          echo "accessToken=$TOKEN" > jmeter/user.properties
-
+          # -- 4) прогоны JMeter --
           for profile in light medium heavy; do
             for run in 1 2 3; do
               echo "=== Running JMeter profile=$profile run=$run ==="
+
               jmeter -n \
                 -LDEBUG \
                 -Dlog4j2.disablePluginRegistry=true \
@@ -393,13 +408,14 @@ jobs:
                 -JaccessToken="$TOKEN" \
               2>&1 | tee results/${profile}-${run}.console.log
 
-              # alert, если есть не-200
+              # если в .jtl есть ответы 4xx/5xx — сигнализируем
               if grep -q '<httpSample[^>]*rc="\(4..|5..\)"' results/${profile}-${run}.jtl; then
                 echo "::error::Non-200 responses in ${profile}-${run}.jtl"
                 tail -n50 results/${profile}-${run}.console.log
               fi
             done
           done
+
 
       - name: Generate JMeter HTML dashboards
         shell: bash

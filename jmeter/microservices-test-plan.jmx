@@ -90,7 +90,7 @@
         <hashTree/>
 
         <!-- POST /api/auth/login -->
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST /api/auth/login" enabled="true">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST /api/auth/login" enabled="false">
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
             <collectionProp name="Arguments.arguments">
               <elementProp name="username" elementType="HTTPArgument">
@@ -126,11 +126,13 @@
           <stringProp name="HTTPSampler.method">GET</stringProp>
         </HTTPSamplerProxy>
         <hashTree>
-          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Auth Header" enabled="true">
+          <HeaderManager testname="Auth Header">
             <collectionProp name="HeaderManager.headers">
               <elementProp name="Authorization" elementType="Header">
                 <stringProp name="Header.name">Authorization</stringProp>
-                <stringProp name="Header.value">Bearer ${accessToken}</stringProp>
+                <stringProp name="Header.value">
+                  Bearer ${__P(accessToken,BAD_TOKEN)}
+                </stringProp>
               </elementProp>
             </collectionProp>
           </HeaderManager>
@@ -153,14 +155,16 @@
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree>
-          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Auth Header" enabled="true">
-            <collectionProp name="HeaderManager.headers">
-              <elementProp name="Authorization" elementType="Header">
-                <stringProp name="Header.name">Authorization</stringProp>
-                <stringProp name="Header.value">Bearer ${accessToken}</stringProp>
-              </elementProp>
-            </collectionProp>
-          </HeaderManager>
+        <HeaderManager testname="Auth Header">
+          <collectionProp name="HeaderManager.headers">
+            <elementProp name="Authorization" elementType="Header">
+              <stringProp name="Header.name">Authorization</stringProp>
+              <stringProp name="Header.value">
+                Bearer ${__P(accessToken,BAD_TOKEN)}
+              </stringProp>
+            </elementProp>
+          </collectionProp>
+        </HeaderManager>
           <hashTree/>
         </hashTree>
 
@@ -170,11 +174,13 @@
           <stringProp name="HTTPSampler.method">GET</stringProp>
         </HTTPSamplerProxy>
         <hashTree>
-          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Auth Header" enabled="true">
+          <HeaderManager testname="Auth Header">
             <collectionProp name="HeaderManager.headers">
               <elementProp name="Authorization" elementType="Header">
                 <stringProp name="Header.name">Authorization</stringProp>
-                <stringProp name="Header.value">Bearer ${accessToken}</stringProp>
+                <stringProp name="Header.value">
+                  Bearer ${__P(accessToken,BAD_TOKEN)}
+                </stringProp>
               </elementProp>
             </collectionProp>
           </HeaderManager>
