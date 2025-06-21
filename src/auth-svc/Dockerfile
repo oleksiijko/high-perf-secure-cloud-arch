@@ -13,7 +13,7 @@ RUN --mount=type=cache,target=/root/.npm \
     npm ci --omit=dev && npm cache clean --force
 
 # исходники
-COPY server.js policy.json ./
+COPY . .
 
 # директория для логов, права на uid 65532 (distroless nonroot)
 RUN mkdir -p /app/logs && chown 65532:65532 /app/logs

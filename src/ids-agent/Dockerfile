@@ -5,7 +5,7 @@ COPY agent.py requirements.txt ./
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir -r requirements.txt \
     && mkdir -p /app/logs \
-    && chown 1000:1000 /app/logs          # uid 1000 = nonroot
+    && chown 65532:65532 /app/logs
 
 # ---------- runtime stage: distroless, НЕТ shell ----------
 FROM gcr.io/distroless/python3-debian12 AS runtime
