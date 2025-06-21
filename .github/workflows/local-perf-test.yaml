@@ -327,12 +327,17 @@ jobs:
 
           kubectl -n istio-system port-forward svc/istio-ingressgateway 8080:80 >/dev/null 2>&1 &
           PF_PID=$!
-          echo "PF_PID=$PF_PID" >> $GITHUB_ENV
+          trap 'kill "$PF_PID"' EXIT    # всегда прибьём при выходе
+
+          # ── генерация такого же JWT, как в make_jwt.py ─────────────
+          pip install --quiet --no-cache-dir PyJWT==2.9.0
+          export JWT_SECRET=demo-secret
+          TOKEN=$(python scripts/make_jwt.py)
 
           for i in {1..120}; do
-            if curl -fs http://localhost:8080/api/profile -o /dev/null; then
+            if curl -fs -H "Authorization: Bearer $TOKEN" \
+                  http://localhost:8080/api/profile -o /dev/null; then
               echo "Ingress ready"
-              kill "$PF_PID"
               exit 0
             fi
             sleep 2
@@ -343,7 +348,6 @@ jobs:
           kubectl -n istio-system logs -l app=istio-ingressgateway --tail=100 || true
           echo "::endgroup::"
 
-          kill "$PF_PID"
           exit 1
 
       - name: Run JMeter with verbose logs
