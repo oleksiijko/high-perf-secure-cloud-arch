@@ -18,6 +18,9 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 65532
       containers:
         - name: content-svc
           image: content-svc:latest
@@ -62,15 +65,10 @@ spec:
             - name: logs
               mountPath: /app/logs
           securityContext:
-            runAsNonRoot: true
-            runAsUser: 1000
-            fsGroup: 65532
-            readOnlyRootFilesystem: false  
+            capabilities: { drop: ["ALL"] }
+            seccompProfile: { type: RuntimeDefault }
+            readOnlyRootFilesystem: false
             allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
-            seccompProfile:
-              type: RuntimeDefault
       volumes:
         - name: logs
           emptyDir: {}

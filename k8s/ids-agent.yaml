@@ -17,6 +17,9 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 65532
       hostPID: true
       containers:
         - name: ids-agent
@@ -43,15 +46,10 @@ spec:
             requests: { cpu: "250m", memory: "256Mi" }
             limits:   { cpu: "750m", memory: "512Mi" }
           securityContext:
-            runAsNonRoot: true
-            runAsUser: 1000
-            fsGroup: 65532
-            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+            seccompProfile: { type: RuntimeDefault }
+            readOnlyRootFilesystem: false
             allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
-            seccompProfile:
-              type: RuntimeDefault
       volumes:
         - name: logs
           emptyDir: {}

@@ -30,7 +30,6 @@ spec:
       - name: falco
         image: falcosecurity/falco:latest
         securityContext:
-          fsGroup: 65532
           privileged: true
           capabilities:
             add: ["SYS_ADMIN"]
