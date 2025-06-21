@@ -4,17 +4,14 @@ metadata:
   name: auth-svc
   namespace: microservices
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: auth-svc
   template:
     metadata:
       annotations:             
-        sidecar.istio.io/proxyCPU: "200m"
-        sidecar.istio.io/proxyMemory: "256Mi"
-        proxy.istio.io/config: |
-          {"holdApplicationUntilProxyStarts": true}
+        istio.io/dataplane-mode: ambient
       labels:
         app: auth-svc
         role: backend
@@ -56,12 +53,8 @@ spec:
                   name: jwt-secret
                   key: secret
           resources:
-            requests:
-              cpu: "150m"
-              memory: "256Mi"
-            limits:
-              cpu: "300m"
-              memory: "512Mi"
+            requests: { cpu: "250m", memory: "256Mi" }
+            limits:   { cpu: "750m", memory: "512Mi" }
           volumeMounts:
             - name: logs
               mountPath: /app/logs
@@ -90,3 +83,21 @@ spec:
     - name: http
       port: 80
       targetPort: 3000
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: auth-svc
+  namespace: microservices
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: auth-svc
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 80 }

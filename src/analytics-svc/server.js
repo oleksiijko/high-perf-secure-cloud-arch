@@ -1,3 +1,10 @@
+const { isMainThread, Worker } = require('worker_threads');
+if (isMainThread) {
+  const n = require('os').cpus().length;
+  for (let i = 0; i < n; i++) new Worker(__filename);
+  return;                            // родитель завершает инициализацию
+}
+
 const express = require('express');
 const fs = require('fs');
 const path = require('path');

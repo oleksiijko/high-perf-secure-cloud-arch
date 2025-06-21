@@ -4,23 +4,16 @@ metadata:
   name: account-svc
   namespace: microservices
 spec:
-  replicas: 1
+  replicas: 2
   selector:
-    matchLabels:
-      app: account-svc
+    matchLabels: { app: account-svc }
   template:
     metadata:
       annotations:             
-        sidecar.istio.io/proxyCPU: "200m"
-        sidecar.istio.io/proxyMemory: "256Mi"
-        proxy.istio.io/config: |
-          {"holdApplicationUntilProxyStarts": true}
-      labels:
-        app: account-svc
-        role: backend
+        istio.io/dataplane-mode: ambient
+      labels: { app: account-svc, role: backend }
     spec:
-      securityContext:
-        runAsNonRoot: true
+      securityContext: { runAsNonRoot: true }
       containers:
         - name: account-svc
           image: account-svc:latest
@@ -31,7 +24,7 @@ spec:
             httpGet:
               path: /health
               port: 3000
-            failureThreshold: 15   # ≈ 60 с до kill’а
+            failureThreshold: 15 
             periodSeconds: 2
           readinessProbe:
             httpGet:
@@ -56,12 +49,8 @@ spec:
                   name: jwt-secret
                   key: secret
           resources:
-            requests:
-              cpu: "150m"
-              memory: "256Mi"
-            limits:
-              cpu: "300m"
-              memory: "512Mi"
+            requests: { cpu: "250m", memory: "256Mi" }
+            limits:   { cpu: "750m", memory: "512Mi" }
           volumeMounts:
             - name: tmp-storage
               mountPath: /tmp
@@ -94,3 +83,21 @@ spec:
     - name: http
       port: 80
       targetPort: 3000
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: account-svc
+  namespace: microservices
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: account-svc
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 80 }

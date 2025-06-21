@@ -4,22 +4,20 @@ metadata:
   name: ids-agent
   namespace: microservices
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: ids-agent
   template:
     metadata:
       annotations:             
-        sidecar.istio.io/proxyCPU: "200m"
-        sidecar.istio.io/proxyMemory: "256Mi"
-        proxy.istio.io/config: |
-          {"holdApplicationUntilProxyStarts": true}
+        istio.io/inject: "false"
       labels:
         app: ids-agent
     spec:
       securityContext:
         runAsNonRoot: true
+      hostPID: true
       containers:
         - name: ids-agent
           image: ids-agent:latest
@@ -42,12 +40,8 @@ spec:
             - name: logs
               mountPath: /app/logs
           resources:
-            requests:
-              cpu: "150m"
-              memory: "256Mi"
-            limits:
-              cpu: "300m"
-              memory: "512Mi"
+            requests: { cpu: "250m", memory: "256Mi" }
+            limits:   { cpu: "750m", memory: "512Mi" }
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
@@ -73,3 +67,21 @@ spec:
     - name: http
       port: 80
       targetPort: 3000
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ids-agent
+  namespace: microservices
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ids-agent
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 80 }
