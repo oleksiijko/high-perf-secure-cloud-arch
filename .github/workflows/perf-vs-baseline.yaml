@@ -163,15 +163,15 @@ jobs:
           find k8s -maxdepth 2 -type f -name '*.yaml' | sort
 
       - name: Create namespace & relax PodSecurity
-          shell: bash
-          run: |
-            # 1. сам namespace
-            kubectl apply -f k8s/namespace.yaml
-            # 2. лейблы PSA — теперь ns уже существует
-            kubectl label --overwrite namespace microservices \
-              pod-security.kubernetes.io/enforce=privileged \
-              pod-security.kubernetes.io/audit=baseline \
-              pod-security.kubernetes.io/warn=baseline
+        shell: bash
+        run: |
+          # 1. сам namespace
+          kubectl apply -f k8s/namespace.yaml
+          # 2. лейблы PSA — теперь ns уже существует
+          kubectl label --overwrite namespace microservices \
+            pod-security.kubernetes.io/enforce=privileged \
+            pod-security.kubernetes.io/audit=baseline \
+            pod-security.kubernetes.io/warn=baseline
 
       # 4. manifests
       - name: Apply Kubernetes manifests
