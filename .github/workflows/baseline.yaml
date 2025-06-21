@@ -85,14 +85,17 @@ jobs:
 
 
 
-    - name: Install JMeter ${{ env.JMETER_VERSION }}
+    - name: Install JMeter on Linux
+      if: runner.os == 'Linux'
       shell: bash
       run: |
-        set -euo pipefail
-        curl -sLO "https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-${JMETER_VERSION}.tgz"
+        set -e
+        JMETER_VERSION=5.6.2
+        curl -sLfO "https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-${JMETER_VERSION}.tgz"
         tar -xzf "apache-jmeter-${JMETER_VERSION}.tgz"
+        export PATH="$PWD/apache-jmeter-${JMETER_VERSION}/bin:$PATH"
         echo "$PWD/apache-jmeter-${JMETER_VERSION}/bin" >> "$GITHUB_PATH"
-        jmeter -v                    # sanity-check (покажет версию)
+        jmeter -v          # → Apache JMeter 5.6.2
 
     # ──────────────── 6. прогоны JMeter (baseline) ──────────────────────
     - name: Run JMeter baseline profiles
