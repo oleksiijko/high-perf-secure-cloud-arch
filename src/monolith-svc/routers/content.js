@@ -1,0 +1,10 @@
+const express = require('express');
+
+const router = express.Router();
+
+// POST /api/content
+router.post('/', (req, res) => {
+  res.status(201).json({ id: 1, status: 'stored' });
+});
+
+module.exports = router;
