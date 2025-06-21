@@ -1,9 +1,3 @@
-const { isMainThread, Worker } = require('worker_threads');
-if (isMainThread) {
-  const n = require('os').cpus().length;
-  for (let i = 0; i < n; i++) new Worker(__filename);
-}
-
 const express = require('express');
 const http     = require('http');
 const auth     = require('./authMiddleware');
