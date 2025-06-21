@@ -8,21 +8,28 @@ jobs:
       - uses: actions/checkout@v4
 
       # 1. kind-cluster из одного worker-нода
+      - name: Write kind config
+        id: write_cfg
+        run: |
+          cat > $RUNNER_TEMP/kind-1node.yaml <<'EOF'
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+            - role: control-plane
+              extraPortMappings:
+                - containerPort: 80
+                  hostPort: 8080
+                  protocol: TCP
+          EOF
+          echo "cfg=$RUNNER_TEMP/kind-1node.yaml" >> "$GITHUB_OUTPUT"
+
+      # ── 2. Создаём кластер, передаём путь ──────────────────────────
       - uses: engineerd/setup-kind@v0.5.0
         with:
           version: v0.20.0
+          config: ${{ steps.write_cfg.outputs.cfg }}  # ← путь к файлу
           name: kind
           wait: 300s
-          # сам конфиг внутри YAML-скаляра
-          config: |
-            kind: Cluster
-            apiVersion: kind.x-k8s.io/v1alpha4
-            nodes:
-              - role: control-plane
-                extraPortMappings:
-                  - containerPort: 80
-                    hostPort: 8080
-                    protocol: TCP
 
 
       # 2. Cборка и deploy **monolith-svc** (без Istio)
