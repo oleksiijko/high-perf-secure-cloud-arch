@@ -133,7 +133,7 @@ jobs:
       shell: bash
       run: |
         python3 -m pip install --upgrade pip
-        pip install numpy
+        pip install numpy pandas
 
     # ───────────────── 7. Агрегация результатов в summary-baseline.txt ────────────
     - name: Aggregate metrics
