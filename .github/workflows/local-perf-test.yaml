@@ -174,7 +174,7 @@ jobs:
 
           # 2. ждём Ready-статус всех pod-ов (≤10 мин)
           kubectl wait --for=condition=ready pod -l app -n microservices --timeout=90s \
-            || echo "::warning::timeout on pod readiness"
+            || echo "::error::timeout on pod readiness"
 
           # 3. +60 с стабильности
           for i in {1..12}; do
