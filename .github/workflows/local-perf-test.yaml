@@ -347,29 +347,44 @@ jobs:
           kill "$PF_PID"
           exit 1
 
-      - name: Run JMeter
+      - name: Run JMeter with verbose logs
         shell: bash
         run: |
-          set -e
+          set -xeuo pipefail
           trap 'kill $PF_PID' EXIT
 
+          # 1) дождаться, пока бекенд начнёт отвечать
           for i in {1..60}; do
-            curl -s http://localhost:8080/ -o /dev/null && break
+            if curl -s http://localhost:8080/ -o /dev/null; then
+              echo "Backend is up"
+              break
+            fi
             sleep 1
           done || { echo "::error::Back-end still not ready"; exit 1; }
 
-          mkdir results
-          for p in light medium heavy; do
-            for i in 1 2 3; do
-              jmeter -n -Dlog4j2.disablePluginRegistry=true \
-                    -q jmeter/user.properties \
-                    -q jmeter/profiles/${p}.properties \
-                    -t jmeter/microservices-test-plan.jmx \
-                    -l results/${p}-${i}.jtl \
-                    -j results/${p}-${i}.log
+          # 2) прогон JMeter с выводом в консоль + в файл
+          mkdir -p results
+          for profile in light medium heavy; do
+            for run in 1 2 3; do
+              echo "=== Running JMeter profile=$profile run=$run ==="
+              jmeter -n \
+                -LDEBUG \
+                -Dlog4j2.disablePluginRegistry=true \
+                -q jmeter/user.properties \
+                -q jmeter/profiles/${profile}.properties \
+                -t jmeter/microservices-test-plan.jmx \
+                -l results/${profile}-${run}.jtl \
+                -j results/${profile}-${run}.log \
+              2>&1 | tee results/${profile}-${run}.console.log
+
+              # покажем хвост лога, если в .jtl нет успешных
+              ERR=$(grep -c '<httpSample[^rc="200"]' results/${profile}-${run}.jtl || echo 0)
+              if [ "$ERR" -gt 0 ]; then
+                echo "::error::Found $ERR non-200 responses in ${profile}-${run}.jtl"
+                tail -n50 results/${profile}-${run}.console.log
+              fi
             done
           done
-
 
       - name: Generate JMeter HTML dashboards
         shell: bash
