@@ -5,7 +5,7 @@ metadata:
   namespace: microservices          # тот же ns, что и у ваших сервисов
 spec:
   gateways:
-    - istio-system/microservices-gw # имя из gateway.yaml
+    - microservices-gw # имя из gateway.yaml
   hosts:
     - '*'                           # для локального кластера хватит «звёздочки»
   http:
