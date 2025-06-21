@@ -36,8 +36,11 @@ metadata:
   namespace: microservices
   labels: { app: monolith-svc }
 spec:
+  type: NodePort
   selector: { app: monolith-svc }
   ports:
-    - port: 80          # как и раньше видит кластер
-      targetPort: 8080  # реальный порт приложения
+    - name: http
+      port: 80
+      targetPort: 8080
+      nodePort: 30080 
       protocol: TCP

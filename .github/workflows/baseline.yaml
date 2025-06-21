@@ -22,8 +22,8 @@ jobs:
         nodes:
           - role: control-plane
             extraPortMappings:
-              - containerPort: 80
-                hostPort: 8080
+              - containerPort: 30080
+                hostPort: 30080
                 protocol: TCP
         EOF
         echo "cfg=$(pwd)/kind-1node.yaml" >> "$GITHUB_OUTPUT"
@@ -51,37 +51,38 @@ jobs:
         kubectl apply -f k8s/monolith.yaml        # ns=microservices
 
 
-    - name: Wait for deployment & debug → port-forward 8080→80
-      id: pf
+    - name: Wait for deployment & debug
+      id: svc_ready
       shell: bash
       run: |
         set -euo pipefail
 
-        echo "::group::🛈  Состояние перед ожиданием"
+        echo "::group::Состояние перед ожиданием"
         kubectl get deploy,rs,pod -n "$NAMESPACE" -l app=monolith-svc -o wide || true
         echo "::endgroup::"
 
-        echo "⏳ Ждём, когда deployment/monolith-svc станет Ready (таймаут 180 с)…"
+        echo "Ждём, когда deployment/monolith-svc перейдёт в Ready (таймаут 180 с)…"
         if ! kubectl rollout status deployment/monolith-svc \
                  -n "$NAMESPACE" --timeout=180s; then
-          echo "::error::⛔ Rollout timeout — выводим подробности"
+          echo "::error::Rollout timeout — выводим подробности"
           kubectl describe deployment/monolith-svc -n "$NAMESPACE" || true
           kubectl get pod -n "$NAMESPACE" -l app=monolith-svc -o wide || true
           kubectl describe pod -n "$NAMESPACE" -l app=monolith-svc || true
           kubectl get events -n "$NAMESPACE" --sort-by=.metadata.creationTimestamp | tail -20 || true
           exit 1
         fi
+        echo "Deployment готов."
 
-        echo "✅ Deployment готов."
-
-        echo "::group::🛈  Поды после успешного роллаута"
+        echo "::group::Поды после успешного роллаута"
         kubectl get pod -n "$NAMESPACE" -l app=monolith-svc -o wide
         echo "::endgroup::"
 
-        echo "➜ Пробрасываем порт 8080 → 80"
-        kubectl -n "$NAMESPACE" port-forward svc/monolith-svc \
-                8080:80 >/dev/null 2>&1 &
-        echo "PF_PID=$!" >> "$GITHUB_ENV"
+        echo "Проверяем доступность NodePort 30080…"
+        until nc -z 127.0.0.1 30080; do
+          sleep 1
+        done
+        echo "NodePort открыт и готов к нагрузочному тесту."
+
 
 
 
@@ -102,8 +103,8 @@ jobs:
       shell: bash
       run: |
         set -euo pipefail
-        export TARGET_HOST=localhost
-        export TARGET_PORT=8080
+        export TARGET_HOST=127.0.0.1
+        export TARGET_PORT=30080
 
         mkdir -p results logs
 
