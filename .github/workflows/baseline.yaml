@@ -38,8 +38,12 @@ jobs:
         kind load docker-image monolith-svc:latest
 
     # ─────────────────────── 4. деплоим манифест ────────────────────────
-    - name: Apply monolith manifests
-      run: kubectl apply -f k8s/monolith.yaml
+    - name: Create namespace & apply monolith
+      run: |
+        kubectl apply -f k8s/namespace.yaml
+        docker build -t monolith-svc:latest ./src/monolith-svc
+        kind load docker-image monolith-svc:latest
+        kubectl apply -f k8s/monolith.yaml
 
     # ───────────────── 5. ждём readiness и port-forward ─────────────────
     - name: Wait pod & port-forward 8080→80
