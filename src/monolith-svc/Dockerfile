@@ -7,7 +7,7 @@ RUN npm ci --omit=dev
 
 COPY . .
 
-EXPOSE 8080                            # слушаем непривилегованный порт
-USER 1000                              # UID ≠ 0, совместим с runAsNonRoot
+EXPOSE 8080                      
+USER 1000
 
 CMD ["node", "index.js"]

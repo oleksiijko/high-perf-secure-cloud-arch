@@ -98,34 +98,36 @@ jobs:
         jmeter -v          # → Apache JMeter 5.6.2
 
     # ──────────────── 6. прогоны JMeter (baseline) ──────────────────────
-    - name: Run JMeter baseline profiles (console log + artefacts)
+    - name: Run JMeter baseline profiles (live log)
       shell: bash
       run: |
         set -euo pipefail
+        export TARGET_HOST=localhost
+        export TARGET_PORT=8080
+
         mkdir -p results logs
 
         for p in light medium heavy; do
           echo "─── profile=$p ───"
 
-          # запускаем JMeter в фоне с двумя наборами свойств
+          # запускаем JMeter в фоне и одновременно стримим лог
           jmeter -n \
-            -q jmeter/user.properties \                 # ← TARGET_HOST / TARGET_PORT
             -q "jmeter/profiles/${p}.properties" \
             -t jmeter/microservices-test-plan.jmx \
+            -Jhost=$TARGET_HOST \
+            -Jport=$TARGET_PORT \
             -JaccessToken=NO_AUTH \
             -l "results/${p}.jtl" \
             -j "logs/${p}.log" &
 
           JM_PID=$!
-
-          # стримим лог на консоль
           tail -f "logs/${p}.log" --pid=$JM_PID &
           TAIL_PID=$!
-
           wait $JM_PID
           kill $TAIL_PID || true
           echo "─── finished $p ───"
         done
+
 
 
     # ───────────────── 7. Агрегация результатов в summary-baseline.txt ────────────
