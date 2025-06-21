@@ -1,0 +1,42 @@
+# k8s/monolith.yaml  (положите в тот же каталог k8s/, где лежат другие *.yaml)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monolith-svc
+  namespace: microservices
+  labels: { app: monolith-svc }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: monolith-svc }
+  template:
+    metadata:
+      labels: { app: monolith-svc }
+    spec:
+      containers:
+        - name: monolith
+          image: monolith-svc:latest           # ← локальный образ из docker build
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+            requests:
+              cpu: "250m"
+              memory: "128Mi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: monolith-svc
+  namespace: microservices
+  labels: { app: monolith-svc }
+spec:
+  selector: { app: monolith-svc }
+  ports:
+    - port: 80          # внутри кластера
+      targetPort: 80    # в контейнере
+      protocol: TCP
