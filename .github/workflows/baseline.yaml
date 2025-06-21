@@ -129,7 +129,11 @@ jobs:
           echo "─── finished $p ───"
         done
 
-
+    - name: Install Python dependencies for metrics
+      shell: bash
+      run: |
+        python3 -m pip install --upgrade pip
+        pip install numpy
 
     # ───────────────── 7. Агрегация результатов в summary-baseline.txt ────────────
     - name: Aggregate metrics
