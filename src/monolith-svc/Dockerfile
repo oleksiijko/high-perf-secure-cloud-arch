@@ -14,6 +14,6 @@ COPY . .
 EXPOSE 8080
 
 # Запускаемся от непривилегированного пользователя node
-USER node
+USER 1000
 
 CMD ["node", "index.js"]
