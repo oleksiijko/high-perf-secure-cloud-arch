@@ -1,19 +1,13 @@
-# src/monolith-svc/Dockerfile
 FROM node:20-slim
 
 WORKDIR /app
 
-# Устанавливаем прод-зависимости
-COPY package*.json package-lock.json ./
+COPY package*.json ./
 RUN npm ci --omit=dev
 
-# Копируем исходники службы
 COPY . .
 
-# Служба слушает непривилегированный порт 8080
-EXPOSE 8080
-
-# Запускаемся от непривилегированного пользователя node
-USER 1000
+EXPOSE 8080                            # слушаем непривилегованный порт
+USER 1000                              # UID ≠ 0, совместим с runAsNonRoot
 
 CMD ["node", "index.js"]

@@ -98,37 +98,33 @@ jobs:
         jmeter -v          # → Apache JMeter 5.6.2
 
     # ──────────────── 6. прогоны JMeter (baseline) ──────────────────────
-    - name: Run JMeter baseline profiles + verbose logs
+    - name: Run JMeter baseline profiles (console log + artefacts)
       shell: bash
       run: |
         set -euo pipefail
-
         mkdir -p results logs
 
         for p in light medium heavy; do
           echo "─── profile=$p ───"
 
-          # Запускаем JMeter, пишем:
-          #  • JTL-отчёт    → results/<profile>.jtl
-          #  • движковый лог → logs/<profile>.log
-          echo "::group::JMeter run ($p)"
+          # запускаем JMeter в фоне с двумя наборами свойств
           jmeter -n \
+            -q jmeter/user.properties \                 # ← TARGET_HOST / TARGET_PORT
             -q "jmeter/profiles/${p}.properties" \
             -t jmeter/microservices-test-plan.jmx \
             -JaccessToken=NO_AUTH \
             -l "results/${p}.jtl" \
-            -j "logs/${p}.log"
-          echo "::endgroup::"
+            -j "logs/${p}.log" &
 
-          # Выводим краткую выборку ошибок, если есть
-          echo "::group::Errors ($p)"
-          grep -E 'ERROR|FATAL' "logs/${p}.log" || echo "no errors"
-          echo "::endgroup::"
+          JM_PID=$!
 
-          # Показываем финальную строку суммаризатора
-          echo "::group::Summary ($p)"
-          tail -n 5 "logs/${p}.log"
-          echo "::endgroup::"
+          # стримим лог на консоль
+          tail -f "logs/${p}.log" --pid=$JM_PID &
+          TAIL_PID=$!
+
+          wait $JM_PID
+          kill $TAIL_PID || true
+          echo "─── finished $p ───"
         done
 
 
