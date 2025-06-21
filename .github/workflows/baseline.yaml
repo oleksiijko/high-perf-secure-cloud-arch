@@ -51,20 +51,38 @@ jobs:
         kubectl apply -f k8s/monolith.yaml        # ns=microservices
 
 
-    - name: Wait for deployment & port-forward 8080→80
+    - name: Wait for deployment & debug → port-forward 8080→80
       id: pf
       shell: bash
       run: |
         set -euo pipefail
 
-        # Дожидаемся, пока все реплики Deployment перейдут в Ready
-        kubectl rollout status deployment/monolith-svc \
-                -n "$NAMESPACE" --timeout=180s
+        echo "::group::🛈  Состояние перед ожиданием"
+        kubectl get deploy,rs,pod -n "$NAMESPACE" -l app=monolith-svc -o wide || true
+        echo "::endgroup::"
 
-        # После готовности открываем проброс порта
+        echo "⏳ Ждём, когда deployment/monolith-svc станет Ready (таймаут 180 с)…"
+        if ! kubectl rollout status deployment/monolith-svc \
+                 -n "$NAMESPACE" --timeout=180s; then
+          echo "::error::⛔ Rollout timeout — выводим подробности"
+          kubectl describe deployment/monolith-svc -n "$NAMESPACE" || true
+          kubectl get pod -n "$NAMESPACE" -l app=monolith-svc -o wide || true
+          kubectl describe pod -n "$NAMESPACE" -l app=monolith-svc || true
+          kubectl get events -n "$NAMESPACE" --sort-by=.metadata.creationTimestamp | tail -20 || true
+          exit 1
+        fi
+
+        echo "✅ Deployment готов."
+
+        echo "::group::🛈  Поды после успешного роллаута"
+        kubectl get pod -n "$NAMESPACE" -l app=monolith-svc -o wide
+        echo "::endgroup::"
+
+        echo "➜ Пробрасываем порт 8080 → 80"
         kubectl -n "$NAMESPACE" port-forward svc/monolith-svc \
                 8080:80 >/dev/null 2>&1 &
         echo "PF_PID=$!" >> "$GITHUB_ENV"
+
 
 
     - name: Install JMeter ${{ env.JMETER_VERSION }}
