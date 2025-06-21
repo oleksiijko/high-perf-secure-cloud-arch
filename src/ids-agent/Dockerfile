@@ -13,4 +13,4 @@ WORKDIR /app
 COPY --from=build /app /app
 ENV LOG_DIR=/app/logs
 USER nonroot
-ENTRYPOINT ["python", "agent.py"]
+CMD ["agent.py"]

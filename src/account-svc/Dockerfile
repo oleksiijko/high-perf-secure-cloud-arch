@@ -29,4 +29,4 @@ COPY --from=build /app /app
 ENV LOG_DIR=/app/logs
 USER nonroot                           
 
-ENTRYPOINT ["node", "server.js"]
+CMD ["server.js"]
