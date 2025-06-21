@@ -295,8 +295,7 @@ jobs:
         shell: bash
         run: |
           python3 -m pip install --upgrade pip
-          pip install numpy 
-          pip install numpy pandas
+          pip install numpy pandas PyJWT
       - name: Install JMeter on macOS
         if: runner.os == 'macOS'
         shell: bash
@@ -364,6 +363,10 @@ jobs:
 
           # 2) прогон JMeter с выводом в консоль + в файл
           mkdir -p results
+          export JWT_SECRET=demo-secret
+          TOKEN=$(python scripts/make_jwt.py)
+          echo "accessToken=$TOKEN" >> jmeter/user.properties
+
           for profile in light medium heavy; do
             for run in 1 2 3; do
               echo "=== Running JMeter profile=$profile run=$run ==="
@@ -375,6 +378,7 @@ jobs:
                 -t jmeter/microservices-test-plan.jmx \
                 -l results/${profile}-${run}.jtl \
                 -j results/${profile}-${run}.log \
+                -JaccessToken=$TOKEN \
               2>&1 | tee results/${profile}-${run}.console.log
 
               # покажем хвост лога, если в .jtl нет успешных
