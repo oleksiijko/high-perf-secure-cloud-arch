@@ -48,19 +48,22 @@ jobs:
         kubectl apply -f k8s/namespace.yaml
         kubectl apply -f k8s/monolith.yaml        # ns=microservices
 
-    # ── ожидание pod + port-forward c указанием ns ────────
-    - name: Wait for pod Ready & port-forward 8080→80
+
+    - name: Wait for deployment & port-forward 8080→80
       id: pf
       shell: bash
       run: |
         set -euo pipefail
 
-        kubectl wait -n "$NAMESPACE" --for=condition=ready pod \
-                -l app=monolith-svc --timeout=180s
+        # Дожидаемся, пока все реплики Deployment перейдут в Ready
+        kubectl rollout status deployment/monolith-svc \
+                -n "$NAMESPACE" --timeout=180s
 
+        # После готовности открываем проброс порта
         kubectl -n "$NAMESPACE" port-forward svc/monolith-svc \
                 8080:80 >/dev/null 2>&1 &
         echo "PF_PID=$!" >> "$GITHUB_ENV"
+
 
     - name: Install JMeter ${{ env.JMETER_VERSION }}
       shell: bash
