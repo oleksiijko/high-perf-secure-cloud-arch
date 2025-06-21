@@ -1,5 +1,5 @@
 name: Baseline Performance Test
-on: workflow_dispatch
+on: workflow_dispatch           # запуск вручную из UI
 
 jobs:
   baseline:
@@ -7,52 +7,61 @@ jobs:
     env:
       JMETER_VERSION: "5.6.2"
       KIND_CLUSTER_NAME: kind
-      NAMESPACE: microservices
+      NAMESPACE: microservices   # единственное место, где задаётся nsё
 
     steps:
-    # 0. код репо
+    # ──────────────────────────── 0. код репо ────────────────────────────
     - uses: actions/checkout@v4
 
-    # 1. поднимаем single-node kind (конфиг прямо здесь)
+    # ─────────────────────── 1. пишем конфиг kind ────────────────────────
+    - name: Write kind config
+      run: |
+        cat > kind-1node.yaml <<'EOF'
+        kind: Cluster
+        apiVersion: kind.x-k8s.io/v1alpha4
+        nodes:
+          - role: control-plane
+            extraPortMappings:
+              - containerPort: 80
+                hostPort: 8080
+                protocol: TCP
+        EOF
+        echo "cfg=$(pwd)/kind-1node.yaml" >> "$GITHUB_OUTPUT"
+
+    # ─────────────────────── 2. поднимаем кластер ────────────────────────
     - uses: engineerd/setup-kind@v0.5.0
       with:
         version: v0.20.0
-        name: ${{ env.KIND_CLUSTER_NAME }}
+        name: kind
         wait: 300s
-        config: |
-          kind: Cluster
-          apiVersion: kind.x-k8s.io/v1alpha4
-          nodes:
-            - role: control-plane
-              extraPortMappings:
-                - containerPort: 80
-                  hostPort: 8080
-                  protocol: TCP
+        config: kind-1node.yaml          # ← относительный путь!
 
-    # 2. build → load → deploy
-    - name: Build image, load to kind, deploy manifests
-      shell: bash
+    # ───────────────────── 3. билдим и грузим образ ──────────────────────
+    # ── build → load → deploy (один шаг) ──────────────────
+    - name: Build image, load to kind, deploy
       run: |
-        set -euo pipefail
+        # 1. Собираем и загружаем в kind один раз
         docker build -t monolith-svc:latest ./src/monolith-svc
-        kind load docker-image monolith-svc:latest --name "$KIND_CLUSTER_NAME"
+        kind load docker-image monolith-svc:latest
 
-        kubectl apply -f k8s/namespace.yaml      # содержит ns=microservices
-        kubectl apply -f k8s/monolith.yaml       # Deployment + Service
+        # 2. Namespace + Deployment/Service
+        kubectl apply -f k8s/namespace.yaml
+        kubectl apply -f k8s/monolith.yaml        # ns=microservices
 
-    # 3. ждём pod и port-forward
-    - name: Wait pod & port-forward 8080→80
+    # ── ожидание pod + port-forward c указанием ns ────────
+    - name: Wait for pod Ready & port-forward 8080→80
+      id: pf
       shell: bash
       run: |
         set -euo pipefail
-        kubectl wait -n "$NAMESPACE" --for=condition=ready pod \
-               -l app=monolith-svc --timeout=180s
 
-        kubectl -n "$NAMESPACE" port-forward svc/monolith-svc 8080:80 \
-               >/dev/null 2>&1 &
+        kubectl wait -n "$NAMESPACE" --for=condition=ready pod \
+                -l app=monolith-svc --timeout=180s
+
+        kubectl -n "$NAMESPACE" port-forward svc/monolith-svc \
+                8080:80 >/dev/null 2>&1 &
         echo "PF_PID=$!" >> "$GITHUB_ENV"
 
-    # 4. install JMeter
     - name: Install JMeter ${{ env.JMETER_VERSION }}
       shell: bash
       run: |
@@ -60,14 +69,16 @@ jobs:
         curl -sLO "https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-${JMETER_VERSION}.tgz"
         tar -xzf "apache-jmeter-${JMETER_VERSION}.tgz"
         echo "$PWD/apache-jmeter-${JMETER_VERSION}/bin" >> "$GITHUB_PATH"
+        jmeter -v                    # sanity-check (покажет версию)
 
-    # 5. нагрузочные профили
-    - name: Run JMeter baseline
+    # ──────────────── 6. прогоны JMeter (baseline) ──────────────────────
+    - name: Run JMeter baseline profiles
       shell: bash
       run: |
         set -euo pipefail
         mkdir -p results
         for p in light medium heavy; do
+          echo "─── profile=$p ───"
           jmeter -n \
             -q "jmeter/profiles/${p}.properties" \
             -t jmeter/microservices-test-plan.jmx \
@@ -75,7 +86,7 @@ jobs:
             -l "results/${p}.jtl"
         done
 
-    # 6. агрегация метрик
+    # ───────────────── 7. Агрегация результатов в summary-baseline.txt ────────────
     - name: Aggregate metrics
       shell: bash
       run: |
@@ -83,14 +94,16 @@ jobs:
         python3 metrics.py results > summary-baseline.txt
         cat summary-baseline.txt
 
-    # 7. стоп port-forward
+    # ──────────────────── 8. Аккуратно гасим port-forward (всегда) ────────────────
     - name: Stop port-forward
       if: always()
       shell: bash
       run: |
-        [[ -n "${PF_PID:-}" ]] && kill "$PF_PID" || true
+        if [[ -n "${PF_PID:-}" ]]; then
+          kill "$PF_PID" || true
+        fi
 
-    # 8. артефакты
+    # ─────────────────── 9. Публикуем артефакты (JTL + summary) ───────────────────
     - uses: actions/upload-artifact@v4
       if: always()
       with:
