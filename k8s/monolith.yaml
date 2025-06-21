@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: monolith
-          image: monolith-svc:latest           # ← локальный образ из docker build
+          image: monolith-svc:ci           # ← локальный образ из docker build
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

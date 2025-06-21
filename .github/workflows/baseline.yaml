@@ -41,8 +41,10 @@ jobs:
     - name: Build image, load to kind, deploy
       run: |
         # 1. Собираем и загружаем в kind один раз
-        docker build -t monolith-svc:latest ./src/monolith-svc
-        kind load docker-image monolith-svc:latest
+        # 1. Собираем образ с уникальной меткой и загружаем в kind
+        IMAGE_TAG=ci            # любая метка, отличная от :latest
+        docker build -t monolith-svc:${IMAGE_TAG} ./src/monolith-svc
+        kind load docker-image monolith-svc:${IMAGE_TAG}
 
         # 2. Namespace + Deployment/Service
         kubectl apply -f k8s/namespace.yaml
