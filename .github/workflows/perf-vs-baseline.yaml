@@ -1,5 +1,5 @@
 name: Perf-vs-Baseline
-on: workflow_dispatch:
+on: workflow_dispatch
 
 env:                             # общие переменные
   JMETER_VER: 5.6.2
