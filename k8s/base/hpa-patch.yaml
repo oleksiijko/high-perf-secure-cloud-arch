@@ -1,4 +1,4 @@
-# Патч для улучшения HPA - добавляем behavior для более плавного масштабирования
+
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -35,7 +35,7 @@ spec:
         value: 2
         periodSeconds: 60
 ---
-# Аналогично для других сервисов
+
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:

@@ -1,4 +1,4 @@
-# Более мягкие readiness probes для CI
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -12,16 +12,16 @@ spec:
           httpGet:
             path: /health
             port: 3000
-          initialDelaySeconds: 45    # Увеличить время ожидания
-          periodSeconds: 15          # Реже проверять
-          timeoutSeconds: 10         # Больше времени на ответ
-          failureThreshold: 5        # Больше попыток
+          initialDelaySeconds: 45
+          periodSeconds: 15
+          timeoutSeconds: 10
+          failureThreshold: 5
           successThreshold: 1
         livenessProbe:
           httpGet:
             path: /health
             port: 3000
-          initialDelaySeconds: 90    # Еще больше для liveness
+          initialDelaySeconds: 90
           periodSeconds: 30
           timeoutSeconds: 15
           failureThreshold: 3
@@ -121,7 +121,7 @@ spec:
       containers:
       - name: ids-agent
         readinessProbe:
-          initialDelaySeconds: 30    # IDS проще, быстрее старт
+          initialDelaySeconds: 30
           periodSeconds: 15
           timeoutSeconds: 10
           failureThreshold: 5

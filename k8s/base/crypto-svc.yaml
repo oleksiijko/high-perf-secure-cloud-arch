@@ -35,12 +35,12 @@ spec:
           ports:
             - containerPort: 3000
 
-          # ── probes ─────────────────────────────
+          
           startupProbe:
             httpGet:
               path: /health
               port: 3000
-            failureThreshold: 30   # ≈ 60 с до kill’а
+            failureThreshold: 30   
             periodSeconds: 2
             initialDelaySeconds: 15 
             

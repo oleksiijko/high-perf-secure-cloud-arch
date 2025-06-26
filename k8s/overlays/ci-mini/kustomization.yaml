@@ -7,13 +7,13 @@ resources:
 secretGenerator:
   - name: jwt-secret
     literals:
-      - secret=demo-secret  # Изменить на правильный секрет
+      - secret=demo-secret
   - name: crypto-key
     literals:
       - key=ci-demo-crypto-key
 
 patches:
-  # Патч namespace для relaxed pod security
+
   - target:
       group: ""
       version: v1
@@ -30,7 +30,7 @@ patches:
         path: /metadata/labels/pod-security.kubernetes.io~1warn
         value: baseline
 
-  # Ресурсы для account-svc
+
   - target:
       group: apps
       version: v1
@@ -71,7 +71,7 @@ patches:
         path: /spec/template/spec/containers/0/livenessProbe/initialDelaySeconds
         value: 30
 
-  # Ресурсы для analytics-svc
+
   - target:
       group: apps
       version: v1
@@ -103,7 +103,7 @@ patches:
         path: /spec/template/spec/containers/0/livenessProbe/initialDelaySeconds
         value: 60
 
-  # Ресурсы для auth-svc
+
   - target:
       group: apps
       version: v1
@@ -135,7 +135,7 @@ patches:
         path: /spec/template/spec/containers/0/livenessProbe/initialDelaySeconds
         value: 60
 
-  # Ресурсы для content-svc
+
   - target:
       group: apps
       version: v1
@@ -167,7 +167,7 @@ patches:
         path: /spec/template/spec/containers/0/livenessProbe/initialDelaySeconds
         value: 60
 
-  # Ресурсы для crypto-svc
+
   - target:
       group: apps
       version: v1
@@ -199,7 +199,7 @@ patches:
         path: /spec/template/spec/containers/0/livenessProbe/initialDelaySeconds
         value: 60
 
-  # Ресурсы для redis (без health probes - у Redis только TCP probes)
+
   - target:
       group: apps
       version: v1
@@ -213,7 +213,7 @@ patches:
         path: /spec/template/spec/containers/0/resources/limits
         value: { "cpu": "200m", "memory": "128Mi" }
 
-  # HPA настройки для более агрессивного автоскейлинга в CI
+
   - target:
       group: autoscaling
       version: v2

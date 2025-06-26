@@ -85,20 +85,20 @@ jobs:
         shell: bash
         run: |
           if [ -d "k8s/istio" ]; then
-            # Скачать Istio
+
             curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.22.8 sh -
             ISTIO_DIR=$(ls -d istio-*)
             echo "$ISTIO_DIR/bin" >> "$GITHUB_PATH"
             export PATH="$PATH:$ISTIO_DIR/bin"
             
-            # Установить с кастомной конфигурацией
+
             if [ -f "k8s/istio/install/custom-istio.yaml" ]; then
               istioctl install -f k8s/istio/install/custom-istio.yaml -y
             else
               istioctl install -y --set profile=demo
             fi
             
-            # Подождать готовности
+
             kubectl -n istio-system wait --for=condition=ready pod -l app=istiod --timeout=300s
           fi
 
@@ -125,7 +125,7 @@ jobs:
               echo "▶ Using Kustomize overlay: ${K8S_PROFILE}"
               kubectl apply -k "k8s/overlays/${K8S_PROFILE}"
           else
-              echo "▶ Overlay '${K8S_PROFILE}' не найден – применяем *.yaml по-старому"
+              echo "▶ Overlay '${K8S_PROFILE}' not found – applying *.yaml directly"
               kubectl apply -f k8s/base/secrets.yaml -n microservices
 
               failed=0
@@ -139,7 +139,7 @@ jobs:
                           ! -name 'secrets.yaml' \
                           ! -name 'podsecuritypolicy.yaml' \
                           ! -name 'monolith*.yaml' \
-                          ! -name 'custom-istio.yaml' | sort); do  # ← Добавить исключение
+                          ! -name 'custom-istio.yaml' | sort); do
                   apply_file "$f"
               done
 
@@ -154,7 +154,7 @@ jobs:
                 kubectl apply -f "$f" || { echo "::error::Failed $f"; failed=1; }
               }
               
-              for f in $(find k8s/istio -name '*.yaml' ! -name 'custom-istio.yaml' | sort); do  # ← Исключить custom-istio.yaml
+              for f in $(find k8s/istio -name '*.yaml' ! -name 'custom-istio.yaml' | sort); do
                   apply_file "$f"
               done
               
@@ -295,7 +295,7 @@ jobs:
           tar -xzf "apache-jmeter-${JMETER_VERSION}.tgz"
           export PATH="$PWD/apache-jmeter-${JMETER_VERSION}/bin:$PATH"
           echo "$PWD/apache-jmeter-${JMETER_VERSION}/bin" >> "$GITHUB_PATH"
-          jmeter -v          # → Apache JMeter 5.6.2
+          jmeter -v
 
       - name: Install Python dependencies
         shell: bash
@@ -318,43 +318,43 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Убедимся, что Istio готов
+
           kubectl -n istio-system wait \
             --for=condition=ready pod \
             -l app=istio-ingressgateway \
             --timeout=300s
 
-          # Определяем количество реплик (минимум 2 для CI)
+
           node_count=$(kubectl get nodes --no-headers | wc -l)
           replicas=$((node_count > 2 ? node_count : 2))
           echo "Scaling to $replicas replicas (nodes: $node_count)"
 
-          # Временно отключаем HPA
+
           echo "Disabling HPA..."
           kubectl -n microservices annotate hpa \
             --all autoscaling.alpha.kubernetes.io/disabled=true --overwrite || true
 
-          # Масштабируем сервисы постепенно
+
           echo "Scaling services..."
           for svc in account-svc auth-svc analytics-svc content-svc crypto-svc; do
             echo "  Scaling $svc to $replicas replicas"
             kubectl -n microservices scale deployment "$svc" --replicas "$replicas" || true
           done
 
-          # Redis остается с 1 репликой
+
           kubectl -n microservices scale deployment redis --replicas 1 || true
 
-          # Ждем готовности с более длинным таймаутом и детальным выводом
+
           echo "Waiting for pods to be ready (timeout: 300s)..."
           
-          # Функция для проверки готовности
+
           wait_for_pods() {
             local timeout=300
             local interval=10
             local elapsed=0
             
             while [ $elapsed -lt $timeout ]; do
-              # Проверяем статус подов
+
               NOT_READY=$(kubectl get pods -n microservices --no-headers | \
                 awk '$3 != "Running" || $2 !~ /^[0-9]+\/[0-9]+$/ || split($2,a,"/") && a[1] != a[2] {print $1}')
               
@@ -363,20 +363,20 @@ jobs:
                 return 0
               fi
               
-              # Выводим прогресс
+
               READY_COUNT=$(kubectl get pods -n microservices --no-headers | \
                 awk '$3 == "Running" && split($2,a,"/") && a[1] == a[2]' | wc -l)
               TOTAL_COUNT=$(kubectl get pods -n microservices --no-headers | wc -l)
               echo "Progress: $READY_COUNT/$TOTAL_COUNT pods ready (elapsed: ${elapsed}s)"
               
-              # Для проблемных подов показываем детали
+
               if [ $((elapsed % 30)) -eq 0 ] && [ $elapsed -gt 0 ]; then
                 echo "Pods not ready:"
                 echo "$NOT_READY"
                 for pod in $NOT_READY; do
                   echo "--- Status of $pod ---"
                   kubectl get pod "$pod" -n microservices -o wide || true
-                  # Показываем события последние 2 минуты
+
                   kubectl get events -n microservices --field-selector involvedObject.name="$pod" \
                     --sort-by='.lastTimestamp' | tail -5 || true
                 done
@@ -390,39 +390,39 @@ jobs:
             return 1
           }
 
-          # Вызываем функцию ожидания
+
           if ! wait_for_pods; then
-            # Диагностика при ошибке
+
             echo "=== Pod diagnostics ==="
             kubectl get pods -n microservices -o wide
             
             echo "=== Recent events ==="
             kubectl get events -n microservices --sort-by='.lastTimestamp' | tail -20
             
-            # Проверяем ресурсы узлов
+
             echo "=== Node resources ==="
             kubectl top nodes || true
             
             exit 1
           fi
 
-          # Включаем HPA обратно
+
           echo "Re-enabling HPA..."
           kubectl -n microservices annotate hpa \
             --all autoscaling.alpha.kubernetes.io/disabled- --overwrite || true
 
-          # Запускаем port-forward
+
           echo "Starting port-forward..."
           kubectl -n istio-system port-forward --address 127.0.0.1 \
             svc/istio-ingressgateway 8080:80 >/dev/null 2>&1 &
           PF_PID=$!
           trap '[[ -e /proc/$PF_PID ]] && kill $PF_PID 2>/dev/null' EXIT
 
-          # Даем время на стабилизацию
+
           echo "Waiting for stabilization..."
           sleep 10
 
-          # Прогрев
+
           echo "Warming up services..."
           for i in {1..50}; do
             if curl -s --max-time 5 http://localhost:8080/health -o /dev/null 2>/dev/null; then
@@ -439,35 +439,35 @@ jobs:
         run: |
           set -euo pipefail
 
-          # 1. Ждем готовности Ingress Gateway
+
           kubectl -n istio-system rollout status \
                   deployment/istio-ingressgateway --timeout=300s
 
-          # 2. Проверяем Istio конфигурацию
+
           echo "Checking Istio configuration..."
           kubectl get gateway -n microservices || echo "No gateways found"
           kubectl get virtualservice -n microservices || echo "No virtual services found"
           
-          # 3. Небольшая пауза для propagation конфигурации
+
           echo "Waiting for configuration propagation..."
           sleep 15
 
-          # 4. Запускаем port-forward
+
           kubectl -n istio-system port-forward --address 127.0.0.1 \
             svc/istio-ingressgateway 8080:80 >/dev/null 2>&1 &
           PF_PID=$!
           trap '[[ -e /proc/$PF_PID ]] && kill $PF_PID' EXIT
 
-          # 5. Ждем готовности port-forward
+
           echo "Waiting for port-forward to be ready..."
           sleep 5
 
-          # 6. Генерируем JWT
+
           pip install --quiet --no-cache-dir PyJWT==2.9.0
           TOKEN=$(python scripts/make_jwt.py)
 
-          # 7. Тестируем доступность
-          ATTEMPTS=${ATTEMPTS:-150}  # 5 минут вместо 10
+
+          ATTEMPTS=${ATTEMPTS:-150}
           echo "Testing ingress connectivity (up to $((ATTEMPTS*2))s)..."
           
           for ((i=1; i<=ATTEMPTS; i++)); do
@@ -477,7 +477,7 @@ jobs:
               exit 0
             fi
             
-            # Показываем прогресс каждые 30 секунд
+
             if (( i % 15 == 0 )); then
               echo "Still waiting... ($((i*2))s elapsed)"
             fi
@@ -485,7 +485,7 @@ jobs:
             sleep 2
           done
 
-          # 8. Диагностика при ошибке
+
           echo "::error::Ingress not ready after $((ATTEMPTS*2))s"
           
           echo "=== Istio Gateway status ==="
@@ -523,7 +523,7 @@ jobs:
           MONITOR_PID=$!
 
 
-          # Убиваем все существующие port-forward процессы
+
           pkill -f "kubectl.*port-forward" || true
           sleep 2
 
@@ -532,7 +532,7 @@ jobs:
           PF_PID=$!
           trap '[[ -e /proc/$PF_PID ]] && kill $PF_PID' EXIT
 
-          # Ждём готовности бэкенда
+
           echo "Waiting for backend to be ready..."
           for i in {1..60}; do
             if curl -s http://localhost:8080/ -o /dev/null; then
@@ -542,20 +542,20 @@ jobs:
             sleep 1
           done
 
-          # Установка PyJWT
+
           pip install --quiet --no-cache-dir PyJWT==2.9.0
 
           mkdir -p results
 
-          # Определяем пороги ошибок
-          ERROR_THRESHOLD=1  # 1% ошибок максимум
 
-          # Прогоны JMeter для каждого профиля
+          ERROR_THRESHOLD=1
+
+
           for profile in light medium heavy; do
-            # Генерируем токен с ролью admin
+
             TOKEN=$(python scripts/make_jwt.py)
             
-            # Создаем user.properties
+
             cat > jmeter/user.properties <<EOF
           accessToken=$TOKEN
           host=localhost
@@ -564,7 +564,7 @@ jobs:
           password=demo123
           EOF
 
-            # Проверяем доступность через gateway
+
             echo "Testing gateway access with admin token..."
             if ! curl -f -H "Authorization: Bearer $TOKEN" \
                 http://localhost:8080/api/profile; then
@@ -572,11 +572,11 @@ jobs:
               exit 1
             fi
 
-            # Запускаем тесты
+
             for run in 1 2 3; do
               echo "=== Running JMeter profile=$profile run=$run ==="
 
-              # Запуск JMeter
+
               jmeter -n \
                 -q jmeter/user.properties \
                 -q jmeter/profiles/${profile}.properties \
@@ -589,7 +589,7 @@ jobs:
               
               if [ -f "results/${profile}-${run}.jtl" ]; then
                 total_requests=$(wc -l < "results/${profile}-${run}.jtl" || echo "0")
-                total_requests=$((total_requests - 1))  # Убираем заголовок
+                total_requests=$((total_requests - 1))
                 
                 error_count=$(awk -F',' '$8 != "200" && $8 != "201" && $8 != "204" && NR > 1 {count++} END {print count+0}' "results/${profile}-${run}.jtl")
                 
@@ -599,7 +599,7 @@ jobs:
                   echo "Error count: $error_count"  
                   echo "Error percentage: $error_percentage%"
                   
-                  if [ "$error_percentage" -ge 50 ]; then  # было 1%, ставим 50%
+                  if [ "$error_percentage" -ge 50 ]; then
                     echo "::warning::High error rate ${error_percentage}%"
                   fi
                 else

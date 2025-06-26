@@ -1,4 +1,4 @@
-# Патч для более агрессивного HPA в CI
+
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -12,7 +12,7 @@ spec:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 60  # Более низкий порог для CI
+          averageUtilization: 60
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 30

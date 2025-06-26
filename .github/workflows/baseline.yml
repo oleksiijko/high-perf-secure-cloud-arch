@@ -41,7 +41,7 @@ jobs:
         
 
         kubectl apply -f k8s/base/namespace.yaml
-        kubectl apply -f k8s/base/monolith.yaml # ns=microservices
+        kubectl apply -f k8s/base/monolith.yaml
 
 
     - name: Wait for deployment & debug
@@ -50,31 +50,31 @@ jobs:
       run: |
         set -euo pipefail
 
-        echo "::group::Состояние перед ожиданием"
+        echo "::group::State before waiting"
         kubectl get deploy,rs,pod -n "$NAMESPACE" -l app=monolith-svc -o wide || true
         echo "::endgroup::"
 
-        echo "Ждём, когда deployment/monolith-svc перейдёт в Ready (таймаут 180 с)…"
+        echo "Waiting for deployment/monolith-svc to become Ready (timeout 180s)..."
         if ! kubectl rollout status deployment/monolith-svc \
                  -n "$NAMESPACE" --timeout=180s; then
-          echo "::error::Rollout timeout — выводим подробности"
+          echo "::error::Rollout timeout — showing details"
           kubectl describe deployment/monolith-svc -n "$NAMESPACE" || true
           kubectl get pod -n "$NAMESPACE" -l app=monolith-svc -o wide || true
           kubectl describe pod -n "$NAMESPACE" -l app=monolith-svc || true
           kubectl get events -n "$NAMESPACE" --sort-by=.metadata.creationTimestamp | tail -20 || true
           exit 1
         fi
-        echo "Deployment готов."
+        echo "Deployment is ready."
 
-        echo "::group::Поды после успешного роллаута"
+        echo "::group::Pods after successful rollout"
         kubectl get pod -n "$NAMESPACE" -l app=monolith-svc -o wide
         echo "::endgroup::"
 
-        echo "Проверяем доступность NodePort 30080…"
+        echo "Checking NodePort 30080 availability..."
         until nc -z 127.0.0.1 30080; do
           sleep 1
         done
-        echo "NodePort открыт и готов к нагрузочному тесту."
+        echo "NodePort is open and ready for load testing."
 
 
 
@@ -89,7 +89,7 @@ jobs:
         tar -xzf "apache-jmeter-${JMETER_VERSION}.tgz"
         export PATH="$PWD/apache-jmeter-${JMETER_VERSION}/bin:$PATH"
         echo "$PWD/apache-jmeter-${JMETER_VERSION}/bin" >> "$GITHUB_PATH"
-        jmeter -v          # → Apache JMeter 5.6.2
+        jmeter -v
 
     - name: Run JMeter baseline profiles (live log)
       shell: bash
@@ -136,7 +136,7 @@ jobs:
         python3 -m pip install --upgrade pip
         pip install numpy pandas
 
-    # ───────────────── 7. Агрегация результатов в summary-baseline.txt ────────────
+
     - name: Aggregate metrics
       shell: bash
       run: |
@@ -144,7 +144,7 @@ jobs:
         python3 scripts/metrics.py results > summary-baseline.txt
         cat summary-baseline.txt
 
-    # ──────────────────── 8. Аккуратно гасим port-forward (всегда) ────────────────
+
     - name: Stop port-forward
       if: always()
       shell: bash
@@ -153,7 +153,7 @@ jobs:
           kill "$PF_PID" || true
         fi
 
-    # ─────────────────── 9. Публикуем артефакты (JTL + summary) ───────────────────
+
     - uses: actions/upload-artifact@v4
       if: always()
       with:
