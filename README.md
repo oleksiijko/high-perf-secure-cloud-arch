@@ -123,4 +123,4 @@ IDS alerts are written to the service logs whenever a pattern like `' OR 1=1` ap
 ## License
 Content is licensed under the [MIT](LICENSE) license.
 
-DOI: 10.5281/zenodo.xxxxxxx
+DOI: https://doi.org/10.5281/zenodo.15746968
