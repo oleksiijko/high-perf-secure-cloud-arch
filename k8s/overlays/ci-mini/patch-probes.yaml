@@ -1,8 +1,8 @@
-# Патч для оптимизации probes под нагрузочное тестирование
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dummy  # Kustomize применит ко всем deployments
+  name: dummy
   namespace: microservices
 spec:
   template:
@@ -14,16 +14,16 @@ spec:
             path: /health
             port: 3000
           initialDelaySeconds: 10
-          periodSeconds: 5           # увеличено с 2
-          failureThreshold: 10       # уменьшено с 30
+          periodSeconds: 5
+          failureThreshold: 10
           successThreshold: 1
           timeoutSeconds: 5
         readinessProbe:
           httpGet:
             path: /health
             port: 3000
-          initialDelaySeconds: 15    # уменьшено с 30
-          periodSeconds: 10          # увеличено с 5
+          initialDelaySeconds: 15
+          periodSeconds: 10
           failureThreshold: 3
           successThreshold: 1
           timeoutSeconds: 5
@@ -32,7 +32,7 @@ spec:
             path: /health
             port: 3000
           initialDelaySeconds: 30
-          periodSeconds: 30          # увеличено с 10
+          periodSeconds: 30
           failureThreshold: 3
           successThreshold: 1
           timeoutSeconds: 5

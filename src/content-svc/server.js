@@ -33,7 +33,7 @@ app.use(express.json());
 app.use((req, res, next) => {
   const raw = req.url + JSON.stringify(req.body);
   if (raw.includes("' OR 1=1")) {
-    logger.warn("ALERT: возможная SQL-инъекция", { raw });
+    logger.warn("ALERT: possible SQL injection", { raw });
     return res.status(403).send('Forbidden');
   }
   next();

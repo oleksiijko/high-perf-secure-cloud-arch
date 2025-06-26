@@ -2,7 +2,6 @@
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.2">
   <hashTree>
 
-    <!-- ░░░  TEST PLAN  ░░░ -->
     <TestPlan guiclass="TestPlanGui"
               testclass="TestPlan"
               testname="Microservices Test Plan"
@@ -46,7 +45,6 @@
     </TestPlan>
     <hashTree>
 
-      <!-- ░░░  SETUP: подставляем профили  ░░░ -->
       <SetupThreadGroup guiclass="SetupThreadGroupGui"
                         testclass="SetupThreadGroup"
                         testname="profile setup"
@@ -88,7 +86,6 @@
         <hashTree/>
       </hashTree>
 
-      <!-- ░░░  ОСНОВНАЯ НАГРУЗКА  ░░░ -->
       <ThreadGroup guiclass="ThreadGroupGui"
                    testclass="ThreadGroup"
                    testname="Load Test"
@@ -106,7 +103,6 @@
       </ThreadGroup>
       <hashTree>
 
-        <!-- HTTP defaults -->
         <ConfigTestElement guiclass="HttpDefaultsGui"
                            testclass="ConfigTestElement"
                            testname="HTTP Request Defaults"
@@ -119,7 +115,6 @@
         </ConfigTestElement>
         <hashTree/>
 
-        <!-- === 1) GET /api/profile === -->
         <HTTPSamplerProxy guiclass="HttpTestSampleGui"
                           testclass="HTTPSamplerProxy"
                           testname="GET /api/profile"
@@ -145,7 +140,6 @@
           <hashTree/>
         </hashTree>
 
-        <!-- === 2) POST /api/content === -->
         <HTTPSamplerProxy guiclass="HttpTestSampleGui"
                           testclass="HTTPSamplerProxy"
                           testname="POST /api/content"
@@ -181,7 +175,6 @@
           <hashTree/>
         </hashTree>
 
-        <!-- === 3) GET /api/analytics === -->
         <HTTPSamplerProxy guiclass="HttpTestSampleGui"
                           testclass="HTTPSamplerProxy"
                           testname="GET /api/analytics"
@@ -207,7 +200,4 @@
           <hashTree/>
         </hashTree>
 
-      </hashTree> <!-- /ThreadGroup hashTree -->
-    </hashTree>   <!-- /TestPlan hashTree -->
-  </hashTree>     <!-- /root hashTree -->
 </jmeterTestPlan>

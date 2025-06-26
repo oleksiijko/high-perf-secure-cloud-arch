@@ -29,7 +29,7 @@ spec:
             limits:
               cpu: "300m"
               memory: "512Mi"
-          # простые probes самого Redis
+          
           readinessProbe:
             tcpSocket:
               port: 6379

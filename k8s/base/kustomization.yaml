@@ -3,11 +3,11 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
-  - secrets.yaml          # ←--- добавить
+  - secrets.yaml          
   - account-svc.yaml
   - auth-svc.yaml
   - analytics-svc.yaml
   - content-svc.yaml
   - crypto-svc.yaml
   - redis.yaml
-  - ids-agent.yaml        # (если нужен IDS-agent)
+  - ids-agent.yaml        

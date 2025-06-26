@@ -20,7 +20,7 @@ provider "aws" {
   region = var.region
 }
 
-# VPC and networking
+
 data "aws_availability_zones" "azs" {}
 
 resource "aws_vpc" "this" {
@@ -207,7 +207,7 @@ resource "aws_networkfirewall_firewall" "this" {
   }
 }
 
-# IAM roles
+
 data "aws_iam_policy_document" "eks_assume" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -233,7 +233,7 @@ resource "aws_iam_role_policy_attachment" "eks_service" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSServicePolicy"
 }
 
-# node role
+
 data "aws_iam_policy_document" "node_assume" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -264,7 +264,7 @@ resource "aws_iam_role_policy_attachment" "node_registry" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
-# EKS cluster
+
 resource "aws_eks_cluster" "this" {
   name     = "hp-secure-eks"
   role_arn = aws_iam_role.eks.arn
@@ -289,7 +289,7 @@ resource "aws_eks_node_group" "default" {
   depends_on = [aws_eks_cluster.this]
 }
 
-# auth
+
 data "aws_eks_cluster_auth" "this" {
   name = aws_eks_cluster.this.name
 }

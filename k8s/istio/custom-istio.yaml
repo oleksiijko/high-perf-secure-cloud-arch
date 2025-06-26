@@ -4,10 +4,10 @@ metadata:
   namespace: istio-system
   name: custom-istio
 spec:
-  profile: demo                            # вместо demo можно default/remote/ambient по нуждам
+  profile: demo                            
   meshConfig:
     defaultConfig:
       concurrency: 2
   values:
     global:
-      jwtPolicy: first-party-jwt           # ← явный выбор first-party JWT :contentReference[oaicite:1]{index=1}
+      jwtPolicy: first-party-jwt           

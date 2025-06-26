@@ -9,7 +9,7 @@ spec:
   hosts:
     - "*"
   http:
-    # 1. Health-check
+    
   - match:
       - uri: { exact: /health }
     route:
@@ -17,7 +17,7 @@ spec:
           host: account-svc
           port: { number: 80 }
 
-    # 2. Profile → account-svc
+    
   - match:
       - uri: { prefix: /api/profile }
     route:
@@ -25,7 +25,7 @@ spec:
           host: account-svc
           port: { number: 80 }
 
-    # 3. Auth → auth-svc
+    
   - match:
       - uri: { prefix: /api/auth }
     route:
@@ -33,7 +33,7 @@ spec:
           host: auth-svc
           port: { number: 80 }
 
-    # 4. Content → content-svc
+    
   - match:
       - uri: { prefix: /api/content }
     route:
@@ -41,7 +41,7 @@ spec:
           host: content-svc
           port: { number: 80 }
 
-    # 5. Analytics → analytics-svc
+    
   - match:
       - uri: { prefix: /api/analytics }
     route:
@@ -49,7 +49,7 @@ spec:
           host: analytics-svc
           port: { number: 80 }
 
-    # 6. Crypto → crypto-svc
+    
   - match:
       - uri: { prefix: /api/crypto }
     route:
@@ -57,7 +57,7 @@ spec:
           host: crypto-svc
           port: { number: 80 }
 
-    # 7. IDS → ids-agent
+    
   - match:
       - uri: { prefix: /api/ids }
     route:
@@ -65,7 +65,7 @@ spec:
           host: ids-agent
           port: { number: 80 }
 
-    # 8. Catch-all для любых остальных /api/*
+    
   - match:
       - uri: { prefix: /api/ }
     route:

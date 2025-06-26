@@ -43,7 +43,7 @@ app.use((req, res, next) => {
   const suspicious = /'\s*OR\s*1=1/i;
   const bodyStr = JSON.stringify(req.body || '');
   if (suspicious.test(req.url) || suspicious.test(bodyStr)) {
-    logger.warn('ALERT: возможная SQL-инъекция');
+    logger.warn('ALERT: possible SQL injection');
     return res.status(403).send('Forbidden');
   }
   next();
