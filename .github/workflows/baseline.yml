@@ -1,0 +1,163 @@
+name: Baseline Performance Test
+on: workflow_dispatch
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    env:
+      JMETER_VERSION: "5.6.2"
+      KIND_CLUSTER_NAME: kind
+      NAMESPACE: microservices
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Write kind config
+      run: |
+        cat > kind-1node.yaml <<'EOF'
+        kind: Cluster
+        apiVersion: kind.x-k8s.io/v1alpha4
+        nodes:
+          - role: control-plane
+            extraPortMappings:
+              - containerPort: 30080
+                hostPort: 30080
+                protocol: TCP
+        EOF
+        echo "cfg=$(pwd)/kind-1node.yaml" >> "$GITHUB_OUTPUT"
+
+    - uses: engineerd/setup-kind@v0.5.0
+      with:
+        version: v0.20.0
+        name: kind
+        wait: 300s
+        config: kind-1node.yaml
+
+    - name: Build image, load to kind, deploy
+      run: |
+        IMAGE_TAG=ci
+        docker build -t monolith-svc:${IMAGE_TAG} ./src/monolith-svc
+        kind load docker-image monolith-svc:${IMAGE_TAG}
+        
+
+        kubectl apply -f k8s/base/namespace.yaml
+        kubectl apply -f k8s/base/monolith.yaml # ns=microservices
+
+
+    - name: Wait for deployment & debug
+      id: svc_ready
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        echo "::group::Состояние перед ожиданием"
+        kubectl get deploy,rs,pod -n "$NAMESPACE" -l app=monolith-svc -o wide || true
+        echo "::endgroup::"
+
+        echo "Ждём, когда deployment/monolith-svc перейдёт в Ready (таймаут 180 с)…"
+        if ! kubectl rollout status deployment/monolith-svc \
+                 -n "$NAMESPACE" --timeout=180s; then
+          echo "::error::Rollout timeout — выводим подробности"
+          kubectl describe deployment/monolith-svc -n "$NAMESPACE" || true
+          kubectl get pod -n "$NAMESPACE" -l app=monolith-svc -o wide || true
+          kubectl describe pod -n "$NAMESPACE" -l app=monolith-svc || true
+          kubectl get events -n "$NAMESPACE" --sort-by=.metadata.creationTimestamp | tail -20 || true
+          exit 1
+        fi
+        echo "Deployment готов."
+
+        echo "::group::Поды после успешного роллаута"
+        kubectl get pod -n "$NAMESPACE" -l app=monolith-svc -o wide
+        echo "::endgroup::"
+
+        echo "Проверяем доступность NodePort 30080…"
+        until nc -z 127.0.0.1 30080; do
+          sleep 1
+        done
+        echo "NodePort открыт и готов к нагрузочному тесту."
+
+
+
+
+    - name: Install JMeter on Linux
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        set -e
+        JMETER_VERSION=5.6.3
+        curl -sLfO "https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-${JMETER_VERSION}.tgz"
+        tar -xzf "apache-jmeter-${JMETER_VERSION}.tgz"
+        export PATH="$PWD/apache-jmeter-${JMETER_VERSION}/bin:$PATH"
+        echo "$PWD/apache-jmeter-${JMETER_VERSION}/bin" >> "$GITHUB_PATH"
+        jmeter -v          # → Apache JMeter 5.6.2
+
+    - name: Run JMeter baseline profiles (live log)
+      shell: bash
+      run: |
+        set -euo pipefail
+        export TARGET_HOST=127.0.0.1
+        export TARGET_PORT=30080
+
+        mkdir -p results logs
+
+        for p in light medium heavy; do
+          for run in 1 2 3; do
+            echo "─── profile=$p run=$run ───"
+
+            jmeter -n \
+              -q "jmeter/profiles/${p}.properties" \
+              -t jmeter/microservices-test-plan.jmx \
+              -Jhost=$TARGET_HOST \
+              -Jport=$TARGET_PORT \
+              -JaccessToken=NO_AUTH \
+              -l "results/${p}-${run}.jtl" \
+              -j "logs/${p}-${run}.log" &
+
+            JM_PID=$!
+            tail -f "logs/${p}-${run}.log" --pid=$JM_PID &
+            TAIL_PID=$!
+            wait $JM_PID
+            kill $TAIL_PID || true
+          done
+        done
+
+    - name: Generate JMeter HTML dashboards
+      shell: bash
+      run: |
+        mkdir -p reports
+        for f in results/*.jtl; do
+          dir="reports/$(basename "$f" .jtl)"
+          jmeter -g "$f" -o "$dir"
+        done
+
+    - name: Install Python dependencies for metrics
+      shell: bash
+      run: |
+        python3 -m pip install --upgrade pip
+        pip install numpy pandas
+
+    # ───────────────── 7. Агрегация результатов в summary-baseline.txt ────────────
+    - name: Aggregate metrics
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 scripts/metrics.py results > summary-baseline.txt
+        cat summary-baseline.txt
+
+    # ──────────────────── 8. Аккуратно гасим port-forward (всегда) ────────────────
+    - name: Stop port-forward
+      if: always()
+      shell: bash
+      run: |
+        if [[ -n "${PF_PID:-}" ]]; then
+          kill "$PF_PID" || true
+        fi
+
+    # ─────────────────── 9. Публикуем артефакты (JTL + summary) ───────────────────
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: baseline-results
+        path: |
+          results/*.jtl
+          summary-baseline.txt
