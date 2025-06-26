@@ -1,0 +1,6 @@
+{
+  "GET /secure": [
+    { "role": "user", "attribute": "owner" },
+    { "role": "admin" }
+  ]
+}

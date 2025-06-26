@@ -1,0 +1,311 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+secretGenerator:
+  - name: jwt-secret
+    literals:
+      - secret=demo-secret  # Изменить на правильный секрет
+  - name: crypto-key
+    literals:
+      - key=ci-demo-crypto-key
+
+patches:
+  # Патч namespace для relaxed pod security
+  - target:
+      group: ""
+      version: v1
+      kind: Namespace
+      name: microservices
+    patch: |
+      - op: replace
+        path: /metadata/labels/pod-security.kubernetes.io~1enforce
+        value: privileged
+      - op: add
+        path: /metadata/labels/pod-security.kubernetes.io~1audit
+        value: baseline
+      - op: add
+        path: /metadata/labels/pod-security.kubernetes.io~1warn
+        value: baseline
+
+  # Ресурсы для account-svc
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: account-svc
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "50m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "64Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "200m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "128Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/startupProbe/initialDelaySeconds
+        value: 5
+      - op: replace
+        path: /spec/template/spec/containers/0/startupProbe/periodSeconds
+        value: 2
+      - op: replace
+        path: /spec/template/spec/containers/0/startupProbe/failureThreshold
+        value: 30
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/periodSeconds
+        value: 5
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/initialDelaySeconds
+        value: 10
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/periodSeconds
+        value: 30
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/initialDelaySeconds
+        value: 30
+
+  # Ресурсы для analytics-svc
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: analytics-svc
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "100m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "128Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "500m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/periodSeconds
+        value: 10
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/initialDelaySeconds
+        value: 15
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/periodSeconds
+        value: 30
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/initialDelaySeconds
+        value: 60
+
+  # Ресурсы для auth-svc
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: auth-svc
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "100m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "128Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "500m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/periodSeconds
+        value: 10
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/initialDelaySeconds
+        value: 15
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/periodSeconds
+        value: 30
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/initialDelaySeconds
+        value: 60
+
+  # Ресурсы для content-svc
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: content-svc
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "100m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "128Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "500m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/periodSeconds
+        value: 10
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/initialDelaySeconds
+        value: 15
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/periodSeconds
+        value: 30
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/initialDelaySeconds
+        value: 60
+
+  # Ресурсы для crypto-svc
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: crypto-svc
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "100m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "128Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "500m"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/periodSeconds
+        value: 10
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/initialDelaySeconds
+        value: 15
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/periodSeconds
+        value: 30
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/initialDelaySeconds
+        value: 60
+
+  # Ресурсы для redis (без health probes - у Redis только TCP probes)
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: redis
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests
+        value: { "cpu": "50m", "memory": "64Mi" }
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits
+        value: { "cpu": "200m", "memory": "128Mi" }
+
+  # HPA настройки для более агрессивного автоскейлинга в CI
+  - target:
+      group: autoscaling
+      version: v2
+      kind: HorizontalPodAutoscaler
+      name: account-svc
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 8
+      - op: replace
+        path: /spec/metrics/0/resource/target/averageUtilization
+        value: 60
+
+  - target:
+      group: autoscaling
+      version: v2
+      kind: HorizontalPodAutoscaler
+      name: analytics-svc
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 8
+      - op: replace
+        path: /spec/metrics/0/resource/target/averageUtilization
+        value: 60
+
+  - target:
+      group: autoscaling
+      version: v2
+      kind: HorizontalPodAutoscaler
+      name: auth-svc
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 8
+      - op: replace
+        path: /spec/metrics/0/resource/target/averageUtilization
+        value: 60
+
+  - target:
+      group: autoscaling
+      version: v2
+      kind: HorizontalPodAutoscaler
+      name: content-svc
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 8
+      - op: replace
+        path: /spec/metrics/0/resource/target/averageUtilization
+        value: 60
+
+  - target:
+      group: autoscaling
+      version: v2
+      kind: HorizontalPodAutoscaler
+      name: crypto-svc
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 8
+      - op: replace
+        path: /spec/metrics/0/resource/target/averageUtilization
+        value: 60
+
+  - target:
+      group: autoscaling
+      version: v2
+      kind: HorizontalPodAutoscaler
+      name: ids-agent
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 3
+      - op: replace
+        path: /spec/metrics/0/resource/target/averageUtilization
+        value: 70

@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: content-svc
+  namespace: microservices
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: content-svc
+  template:
+    metadata:
+      annotations:             
+        istio.io/dataplane-mode: ambient
+        sidecar.istio.io/rewriteAppHTTPProbers: "false"
+        traffic.sidecar.istio.io/excludeInboundPorts: "3000"
+        status.sidecar.istio.io/port: "0" 
+        sidecar.istio.io/proxyCPU: "200m"
+        sidecar.istio.io/proxyMemory: "256Mi"
+        proxy.istio.io/config: |
+          {"holdApplicationUntilProxyStarts": true}
+      labels:
+        app: content-svc
+        role: backend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 65532
+      containers:
+        - name: content-svc
+          image: content-svc:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            failureThreshold: 30  
+            periodSeconds: 2
+            initialDelaySeconds: 15 
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          env:
+            - name: REDIS_URL
+              value: redis://redis:6379
+            - name: DISABLE_RL
+              value: "true"
+            - name: LOG_DIR
+              value: /app/logs
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-secret
+                  key: secret
+          resources:
+            requests: { cpu: "150m", memory: "256Mi" }
+            limits:   { cpu: "750m", memory: "512Mi" }
+          volumeMounts:
+            - name: logs
+              mountPath: /app/logs
+          securityContext:
+            capabilities: { drop: ["ALL"] }
+            seccompProfile: { type: RuntimeDefault }
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+      volumes:
+        - name: logs
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: content-svc
+  namespace: microservices
+spec:
+  selector:
+    app: content-svc
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: content-svc
+  namespace: microservices
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: content-svc
+  minReplicas: 4
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }

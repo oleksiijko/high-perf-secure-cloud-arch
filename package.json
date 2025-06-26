@@ -1,0 +1,12 @@
+{
+  "name": "high-perf-secure-cloud-arch",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "jest --silent"
+  },
+  "devDependencies": {
+    "jest": "29.7.0",
+    "supertest": "^7.1.1"
+  }
+}

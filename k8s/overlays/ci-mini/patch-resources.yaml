@@ -1,0 +1,133 @@
+# Более мягкие readiness probes для CI
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: account-svc
+spec:
+  template:
+    spec:
+      containers:
+      - name: account-svc
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 45    # Увеличить время ожидания
+          periodSeconds: 15          # Реже проверять
+          timeoutSeconds: 10         # Больше времени на ответ
+          failureThreshold: 5        # Больше попыток
+          successThreshold: 1
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 90    # Еще больше для liveness
+          periodSeconds: 30
+          timeoutSeconds: 15
+          failureThreshold: 3
+$patch: merge
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analytics-svc
+spec:
+  template:
+    spec:
+      containers:
+      - name: analytics-svc
+        readinessProbe:
+          initialDelaySeconds: 45
+          periodSeconds: 15
+          timeoutSeconds: 10
+          failureThreshold: 5
+        livenessProbe:
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 15
+          failureThreshold: 3
+$patch: merge
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-svc
+spec:
+  template:
+    spec:
+      containers:
+      - name: auth-svc
+        readinessProbe:
+          initialDelaySeconds: 45
+          periodSeconds: 15
+          timeoutSeconds: 10
+          failureThreshold: 5
+        livenessProbe:
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 15
+          failureThreshold: 3
+$patch: merge
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: content-svc
+spec:
+  template:
+    spec:
+      containers:
+      - name: content-svc
+        readinessProbe:
+          initialDelaySeconds: 45
+          periodSeconds: 15
+          timeoutSeconds: 10
+          failureThreshold: 5
+        livenessProbe:
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 15
+          failureThreshold: 3
+$patch: merge
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crypto-svc
+spec:
+  template:
+    spec:
+      containers:
+      - name: crypto-svc
+        readinessProbe:
+          initialDelaySeconds: 45
+          periodSeconds: 15
+          timeoutSeconds: 10
+          failureThreshold: 5
+        livenessProbe:
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 15
+          failureThreshold: 3
+$patch: merge
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ids-agent
+spec:
+  template:
+    spec:
+      containers:
+      - name: ids-agent
+        readinessProbe:
+          initialDelaySeconds: 30    # IDS проще, быстрее старт
+          periodSeconds: 15
+          timeoutSeconds: 10
+          failureThreshold: 5
+        livenessProbe:
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 15
+          failureThreshold: 3
+$patch: merge

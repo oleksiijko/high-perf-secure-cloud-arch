@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: falco-node-rules
+  namespace: kube-system
+data:
+  node_rules.yaml: |
+    - rule: NodeJS Exec Unexpected
+      desc: Detect unexpected exec in Node.js
+      condition: evt.type = execve and proc.name=node and not proc.args contains "node"
+      output: "Node.js execve detected (command=%proc.cmdline)"
+      priority: WARNING
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: falco
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: falco
+  template:
+    metadata:
+      labels:
+        app: falco
+    spec:
+      hostPID: true
+      containers:
+      - name: falco
+        image: falcosecurity/falco:latest
+        securityContext:
+          privileged: true
+          capabilities:
+            add: ["SYS_ADMIN"]
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - name: dev-fs
+          mountPath: /host/dev
+        - name: proc-fs
+          mountPath: /host/proc
+        - name: sys-fs
+          mountPath: /host/sys
+        - name: rules
+          mountPath: /etc/falco/rules.d
+      volumes:
+      - name: dev-fs
+        hostPath:
+          path: /dev
+      - name: proc-fs
+        hostPath:
+          path: /proc
+      - name: sys-fs
+        hostPath:
+          path: /sys
+      - name: rules
+        configMap:
+          name: falco-node-rules

@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.2">
+  <hashTree>
+
+    <!-- ░░░  TEST PLAN  ░░░ -->
+    <TestPlan guiclass="TestPlanGui"
+              testclass="TestPlan"
+              testname="Microservices Test Plan"
+              enabled="true">
+
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments">
+        <collectionProp name="Arguments.arguments">
+
+          <elementProp name="profile"       elementType="Argument">
+            <stringProp name="Argument.name">profile</stringProp>
+            <stringProp name="Argument.value">${__P(profile,light)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+
+          <elementProp name="THREADS"       elementType="Argument">
+            <stringProp name="Argument.name">THREADS</stringProp>
+            <stringProp name="Argument.value">${__P(THREADS,)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+
+          <elementProp name="RAMP_UP"       elementType="Argument">
+            <stringProp name="Argument.name">RAMP_UP</stringProp>
+            <stringProp name="Argument.value">${__P(RAMP_UP,)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+
+          <elementProp name="TARGET_HOST"   elementType="Argument">
+            <stringProp name="Argument.name">TARGET_HOST</stringProp>
+            <stringProp name="Argument.value">${__P(host,localhost)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+
+          <elementProp name="TARGET_PORT"   elementType="Argument">
+            <stringProp name="Argument.name">TARGET_PORT</stringProp>
+            <stringProp name="Argument.value">${__P(port,8080)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+
+        </collectionProp>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+
+      <!-- ░░░  SETUP: подставляем профили  ░░░ -->
+      <SetupThreadGroup guiclass="SetupThreadGroupGui"
+                        testclass="SetupThreadGroup"
+                        testname="profile setup"
+                        enabled="true">
+        <stringProp name="ThreadGroup.num_threads">1</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">1</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+          <boolProp  name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">1</stringProp>
+        </elementProp>
+      </SetupThreadGroup>
+      <hashTree>
+        <JSR223Sampler guiclass="TestBeanGUI"
+                       testclass="JSR223Sampler"
+                       testname="Set profile defaults"
+                       enabled="true">
+          <stringProp name="script">
+            def prof = props.getProperty('profile', 'light')
+            switch (prof) {
+              case 'light':
+                props.put('THREADS' , props.getProperty('THREADS' ,'10'))
+                props.put('RAMP_UP' , props.getProperty('RAMP_UP' ,'30'))
+                props.put('DURATION', props.getProperty('DURATION','900'))
+                break
+              case 'medium':
+                props.put('THREADS' , props.getProperty('THREADS' ,'50'))
+                props.put('RAMP_UP' , props.getProperty('RAMP_UP' ,'60'))
+                props.put('DURATION', props.getProperty('DURATION','900'))
+                break
+              case 'heavy':
+                props.put('THREADS' , props.getProperty('THREADS' ,'100'))
+                props.put('RAMP_UP' , props.getProperty('RAMP_UP' ,'120'))
+                props.put('DURATION', props.getProperty('DURATION','900'))
+                break
+            }
+          </stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+      </hashTree>
+
+      <!-- ░░░  ОСНОВНАЯ НАГРУЗКА  ░░░ -->
+      <ThreadGroup guiclass="ThreadGroupGui"
+                   testclass="ThreadGroup"
+                   testname="Load Test"
+                   enabled="true">
+        <stringProp name="ThreadGroup.num_threads">${THREADS}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">${RAMP_UP}</stringProp>
+
+        <boolProp   name="ThreadGroup.scheduler">true</boolProp>
+        <stringProp name="ThreadGroup.duration">${__P(DURATION,900)}</stringProp>
+
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+          <boolProp  name="LoopController.continue_forever">true</boolProp>
+          <stringProp name="LoopController.loops">1</stringProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+
+        <!-- HTTP defaults -->
+        <ConfigTestElement guiclass="HttpDefaultsGui"
+                           testclass="ConfigTestElement"
+                           testname="HTTP Request Defaults"
+                           enabled="true">
+          <stringProp name="HTTPSampler.domain">${TARGET_HOST}</stringProp>
+          <stringProp name="HTTPSampler.port">${TARGET_PORT}</stringProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+        </ConfigTestElement>
+        <hashTree/>
+
+        <!-- === 1) GET /api/profile === -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui"
+                          testclass="HTTPSamplerProxy"
+                          testname="GET /api/profile"
+                          enabled="true">
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <stringProp name="HTTPSampler.path">/api/profile</stringProp>
+          <boolProp   name="HTTPSampler.use_httpclient">true</boolProp>
+          <stringProp name="HTTPSampler.use_keepalive">true</stringProp>
+          <stringProp name="HTTPSampler.connect_timeout">10000</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel"
+                         testclass="HeaderManager"
+                         testname="Auth Header"
+                         enabled="true">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="Authorization" elementType="Header">
+                <stringProp name="Header.name">Authorization</stringProp>
+                <stringProp name="Header.value">Bearer ${__P(accessToken,BAD_TOKEN)}</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+          <hashTree/>
+        </hashTree>
+
+        <!-- === 2) POST /api/content === -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui"
+                          testclass="HTTPSamplerProxy"
+                          testname="POST /api/content"
+                          enabled="true">
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <stringProp name="HTTPSampler.path">/api/content</stringProp>
+          <boolProp   name="HTTPSampler.postBodyRaw">true</boolProp>
+          <boolProp   name="HTTPSampler.use_httpclient">true</boolProp>
+          <stringProp name="HTTPSampler.use_keepalive">true</stringProp>
+          <stringProp name="HTTPSampler.connect_timeout">10000</stringProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="body" elementType="HTTPArgument">
+                <boolProp   name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel"
+                         testclass="HeaderManager"
+                         testname="Auth Header"
+                         enabled="true">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="Authorization" elementType="Header">
+                <stringProp name="Header.name">Authorization</stringProp>
+                <stringProp name="Header.value">Bearer ${__P(accessToken,BAD_TOKEN)}</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+          <hashTree/>
+        </hashTree>
+
+        <!-- === 3) GET /api/analytics === -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui"
+                          testclass="HTTPSamplerProxy"
+                          testname="GET /api/analytics"
+                          enabled="true">
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <stringProp name="HTTPSampler.path">/api/analytics</stringProp>
+          <boolProp   name="HTTPSampler.use_httpclient">true</boolProp>
+          <stringProp name="HTTPSampler.use_keepalive">true</stringProp>
+          <stringProp name="HTTPSampler.connect_timeout">10000</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel"
+                         testclass="HeaderManager"
+                         testname="Auth Header"
+                         enabled="true">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="Authorization" elementType="Header">
+                <stringProp name="Header.name">Authorization</stringProp>
+                <stringProp name="Header.value">Bearer ${__P(accessToken,BAD_TOKEN)}</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+          <hashTree/>
+        </hashTree>
+
+      </hashTree> <!-- /ThreadGroup hashTree -->
+    </hashTree>   <!-- /TestPlan hashTree -->
+  </hashTree>     <!-- /root hashTree -->
+</jmeterTestPlan>

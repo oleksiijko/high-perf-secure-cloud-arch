@@ -1,0 +1,74 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: microservices
+  namespace: microservices
+spec:
+  gateways:
+    - microservices-gw
+  hosts:
+    - "*"
+  http:
+    # 1. Health-check
+  - match:
+      - uri: { exact: /health }
+    route:
+      - destination:
+          host: account-svc
+          port: { number: 80 }
+
+    # 2. Profile → account-svc
+  - match:
+      - uri: { prefix: /api/profile }
+    route:
+      - destination:
+          host: account-svc
+          port: { number: 80 }
+
+    # 3. Auth → auth-svc
+  - match:
+      - uri: { prefix: /api/auth }
+    route:
+      - destination:
+          host: auth-svc
+          port: { number: 80 }
+
+    # 4. Content → content-svc
+  - match:
+      - uri: { prefix: /api/content }
+    route:
+      - destination:
+          host: content-svc
+          port: { number: 80 }
+
+    # 5. Analytics → analytics-svc
+  - match:
+      - uri: { prefix: /api/analytics }
+    route:
+      - destination:
+          host: analytics-svc
+          port: { number: 80 }
+
+    # 6. Crypto → crypto-svc
+  - match:
+      - uri: { prefix: /api/crypto }
+    route:
+      - destination:
+          host: crypto-svc
+          port: { number: 80 }
+
+    # 7. IDS → ids-agent
+  - match:
+      - uri: { prefix: /api/ids }
+    route:
+      - destination:
+          host: ids-agent
+          port: { number: 80 }
+
+    # 8. Catch-all для любых остальных /api/*
+  - match:
+      - uri: { prefix: /api/ }
+    route:
+      - destination:
+          host: account-svc
+          port: { number: 80 }
